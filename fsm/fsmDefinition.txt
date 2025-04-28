@@ -1,0 +1,19 @@
+Name:
+    TOF5s
+Comment:
+    Timer to off.
+Input:
+    in
+Output:
+    out
+Variables:
+    int timeout = 5000
+States:
+    IDLE : { output("out", 0) }
+    ACTIVE : { output("out", 1) }
+    TIMING : { }
+Transitions:
+    IDLE --> ACTIVE: in [ atoi(valueof("in")) == 1 ]
+    ACTIVE --> TIMING: in [ atoi(valueof("in")) == 0 ]
+    TIMING --> ACTIVE : in [ atoi(valueof("in")) == 1 ]
+    TIMING --> IDLE : @ timeout

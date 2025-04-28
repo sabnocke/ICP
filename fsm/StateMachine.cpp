@@ -12,29 +12,6 @@
 #include <vector>
 using std::string;
 
-struct Transition;
-
-struct State {
-  string name;
-  std::function<void()> onEnter;
-  std::function<void()> onExit;
-  std::vector<Transition *> transitions;
-};
-
-struct Transition {
-  State *from;
-  State *to;
-
-  Transition(State *from, State *to) {
-    this->from = from;
-    this->to = to;
-  }
-  // std::function<bool()> condition;
-  std::optional<string> inputEvent;
-  std::optional<string> condition;
-  std::optional<int> delayTimeMs;
-  // bool isTimeout;
-};
 
 class Automaton {
 public:
