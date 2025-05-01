@@ -66,4 +66,7 @@ Repo for ICP project
 
 # Dependencies
 This project uses following external libraries
- - [ctre](https://github.com/hanickadot/compile-time-regular-expressions/tree/main) 
+ - ~~[ctre](https://github.com/hanickadot/compile-time-regular-expressions/tree/main)~~
+ - [reproc](https://github.com/DaanDeMeyer/reproc)
+ - [abseil](https://abseil.io)
+ - [re2](https://github.com/google/re2/tree/main)
