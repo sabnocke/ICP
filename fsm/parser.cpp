@@ -3,10 +3,13 @@
 //
 
 #include "parser.h"
+#include <absl/log/absl_check.h>
+#include <ctre.hpp>
 #include <fstream>
 #include <iostream>
 #include "AutomatLib.h"
-#include <ctre.hpp>
+
+#include <re2/re2.h>
 #include "Utils.h"
 
 #define DEFAULT_NAME "Unknown"
@@ -18,7 +21,7 @@ Automat parser::parseAutomat(const std::string &file) {
     return automat;
   }
   std::string line;
-  enum Section {Name, Comment, Variables, States, Transitions};
+  enum Section { Name, Comment, Variables, States, Transitions };
   Section currentSection = Name;
 
   while (std::getline(ifs, line)) {
@@ -35,13 +38,16 @@ Automat parser::parseAutomat(const std::string &file) {
     } else {
       switch (currentSection) {
         case Name:
-          automat.Name = extractName(line).value_or(DEFAULT_NAME); continue;
+          automat.Name = extractName(line).value_or(DEFAULT_NAME);
+          continue;
         case Comment:
-          automat.Comment = line; continue;
+          automat.Comment = line;
+          continue;
         case States:
           parseState(line);
         case Transitions:
-          parseTransition(line); continue;
+          parseTransition(line);
+          continue;
         case Variables:
           parseVariable(line);
       }
@@ -51,16 +57,12 @@ Automat parser::parseAutomat(const std::string &file) {
 }
 
 void parser::parseState(const std::string &line) {
-  const auto colon = line.find(':');
-  if (colon == std::string::npos) {
-    std::cerr << "Can't find colon" << std::endl;
-    return;
-  }
-  auto name = line.substr(0, colon);  //TODO trim it
-  automat.addState(name, [name]() {
-    std::cout << "Entering state: " << name << std::endl;
-  }); //TODO ~~parse the action~~ - let compiler validate it later on
-  //TODO change addState to store the action as a string instead of directly parsing it as a function
+  const auto trimmed = Utils::Trim(line);
+  std::string name, code;
+  ABSL_CHECK(RE2::FullMatch(trimmed, R"((?<name>[A-Z0-9]+) *: *\{(?<code>.+)\})", &name, &code));
+  automat.addState(name, code);
+  // TODO can the code be on multiple lines?
+  // TODO if so, then it cannot be detected via regex this easily, would need more parsing and accumulation
 }
 
 /// Extracts name from line, expecting format of "Name:<name>".
@@ -70,34 +72,25 @@ void parser::parseState(const std::string &line) {
 std::optional<std::string> parser::extractName(const std::string &line) {
   const std::string pureLine = Utils::Purify(line);
   if (const auto colon = pureLine.find(':'); colon != std::string::npos) {
-    const auto name = line.substr(colon + 1);
-    return name;
+    return line.substr(colon + 1);
   }
   return std::nullopt;
 }
 
 void parser::parseVariable(const std::string &line) {
-  auto trimmed = Utils::Trim(line);
-  if (auto result = ctre::match<varPattern>(trimmed)) {
-    auto [whole, type, name, value] = result;   //TODO does it work?
-    automat.addVariable(type, name, value);
-  }
+  const auto trimmed = Utils::Trim(line);
+  std::string type, name, value;
+  ABSL_CHECK(RE2::FullMatch(trimmed, R"((?<type>\w+) (?<name>\w+) = (?<value>\w+))", &type, &name, &value));
+  automat.addVariable(type, name, value);
 }
 
 
 void parser::parseTransition(const std::string &line) {
-  auto purified = Utils::Purify(line);
-  // TODO test that CTRE works separately
-  if (auto result = ctre::match<pattern>(purified)) {
-    auto [whole, from, to, input, cond, delay] = result; //TODO does it work?
+  const auto trimmed = Utils::Trim(line); // Preserve structure of condition, if any is present
+  std::string from, to, input, cond, delay;
+  ABSL_CHECK(RE2::FullMatch(trimmed,
+                            R"((?<from>\w+) *--> *(?<to>\w+) *: *(?<input>\w*) *\[?(?<cond>.+)?\]?@? *(?<delay>\w+)?)",
+                            &from, &to, &input, &cond, &delay));
 
-    // // Replacement in case the following doesn't work
-    // // result.erase(std::remove(result.begin(), result.end(), '['), result.end());
-    cond.erase(std::ranges::remove(cond, '[').begin(), cond.end());
-    cond.erase(std::ranges::remove(cond, ']').begin(), cond.end());
-    Utils::Remove(cond, ']');
-    Utils::Remove(cond, '[');
-    automat.addTransition(from, to, []() {return true;}); //TODO fix: there is no way passing input event or delay
-    //TODO condition should ideally be validated by compiler, not Automat
-  }
+  automat.addTransition(from, to, input, cond, delay);
 }
