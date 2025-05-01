@@ -20,6 +20,8 @@ add_executable(fsm
         fsm/Stopwatch.h
         fsm/parser.cpp
         fsm/parser.h
+        fsm/Utils.cpp
+        fsm/Utils.h
 )
 
 
