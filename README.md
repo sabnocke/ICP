@@ -2,8 +2,15 @@
 Repo for ICP project
 
 ---
+## TODO for parse
+- [ ] Finish initial parsing
+- [ ] Start with new file creation, i.e., the file containing runnable version of automat
+- [ ] Need to create a way communicating between processes (one parses and creates the automat and other runs it)
+- [ ] Process shenanigans
+
+---
 - [ ] Background draggable area motion visibility
-- [ ] Create dragging for widgets (whatever i am constructing the automata of)
+- [ ] Create dragging for widgets (whatever I am constructing the automata of)
 - [ ] For dragging of widgets maybe spawn them within the area first and make them draggable there?
 ---
 - [ ] Beware of backwards compatibility (Qt 6.9 vs Qt 5.5)
