@@ -5,10 +5,11 @@ project(fsm VERSION 0.1 LANGUAGES CXX)
 include(FetchContent)
 set(CMAKE_CXX_STANDARD 17)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
-set(REPROC++ ON CACHE BOOL "Build the reproc C++ wrapper")
-set(BUILD_TESTING OFF)
-set(ABSL_ENABLE_INSTALL ON)
+set(CMAKE_CXX_EXTENSIONS OFF)
 
+
+
+set(REPROC++ ON CACHE BOOL "Build the reproc C++ wrapper")
 FetchContent_Declare(
         reproc
         GIT_REPOSITORY https://github.com/DaanDeMeyer/reproc.git
@@ -16,13 +17,8 @@ FetchContent_Declare(
 )
 FetchContent_MakeAvailable(reproc)
 
-FetchContent_Declare(
-        ctre
-        GIT_REPOSITORY https://github.com/hanickadot/compile-time-regular-expressions.git
-        GIT_TAG 78c5c3ef0e562f2ef0fea9ee3de743cdcf99e6f2    # v3.9.0
-)
-FetchContent_MakeAvailable(ctre)
-
+set(BUILD_TESTING OFF)
+set(ABSL_ENABLE_INSTALL ON)
 FetchContent_Declare(
         absl
         GIT_REPOSITORY "https://github.com/abseil/abseil-cpp.git"
@@ -37,23 +33,35 @@ FetchContent_Declare(
 )
 FetchContent_MakeAvailable(re2)
 
+FetchContent_Declare(
+        range-v3
+        GIT_REPOSITORY https://github.com/ericniebler/range-v3.git
+        GIT_TAG a81477931a8aa2ad025c6bda0609f38e09e4d7ec
+)
+FetchContent_MakeAvailable(range-v3)
+
+FetchContent_Declare(
+        ctre
+        GIT_REPOSITORY https://github.com/hanickadot/compile-time-regular-expressions.git
+        GIT_TAG 78c5c3ef0e562f2ef0fea9ee3de743cdcf99e6f2    # v3.9.0
+)
+FetchContent_MakeAvailable(ctre)
+
 add_executable(fsm
-        fsm/StateMachine.h
-        fsm/StateMachine.cpp
         fsm/AutomatLib.cpp
-        fsm/AutomatLib.h
-        fsm/Stopwatch.cpp
-        fsm/Stopwatch.h
         fsm/parser.cpp
-        fsm/parser.h
         fsm/Utils.cpp
-        fsm/Utils.h
+        fsm/AutomatRuntime.cpp
+        fsm/main.cpp
 )
 
 
 target_link_libraries(fsm PRIVATE
         reproc++
-        ctre::ctre
+        ctre::ctre  # Considered obsolete
         absl::base
-        re2::re2)
+        absl::strings
+        range-v3::range-v3
+        re2::re2
+)
 
