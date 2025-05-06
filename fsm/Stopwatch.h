@@ -1,26 +1,27 @@
-//
-// Created by ReWyn on 28.04.2025.
-//
+/// Source = https://stackoverflow.com/questions/2808398/easily-measure-elapsed-time
 
 #pragma once
 #include <chrono>
 
-template <typename Clock = std::chrono::steady_clock>
-class Stopwatch {
-  typename Clock::time_point last;
-  public:
-  Stopwatch() : last(Clock::now()) {}
-  void reset() {
-    *this = Stopwatch();
+template <class DT = std::chrono::milliseconds,
+          class ClockT = std::chrono::steady_clock>
+class Timer
+{
+  using time_p_t = typename ClockT::time_point;
+  time_p_t _start = ClockT::now(), _end = {};
+
+public:
+  void tick() {
+    _end = time_p_t{};
+    _start = ClockT::now();
   }
 
-  typename Clock::duration elapsed() const {
-    return Clock::now() - last;
+  void tock() { _end = ClockT::now(); }
+
+  template <class T = DT>
+  auto duration() const {
+    return std::chrono::duration_cast<T>(_end - _start);
   }
 };
 
-// template <typename T, typename Rep, typename Period>
-// T change_duration(const std::chrono::duration<Rep, Period>& duration) {
-//   return duration.count() * static_cast<T>(Period::num) / static_cast<T>(Period::den);
-// }
 
