@@ -37,8 +37,7 @@ src/cmake-build-debug
 src/icp-qt/build
 src/icp-qt/CMakeLists.txt.user
 
-fsm/cmake-build-debug/
 
 .idea/
-
 cmake-build-debug/
+build/
