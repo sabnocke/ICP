@@ -9,9 +9,6 @@ Repo for ICP project
 - [ ] Process shenanigans
 
 ---
-- [ ] Background draggable area motion visibility
-- [ ] Create dragging for widgets (whatever I am constructing the automata of)
-- [ ] For dragging of widgets maybe spawn them within the area first and make them draggable there?
 ---
 - [ ] Beware of backwards compatibility (Qt 6.9 vs Qt 5.5)
 ```cpp
