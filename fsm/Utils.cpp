@@ -3,68 +3,64 @@
 //
 
 #include "Utils.h"
+#include <absl/log/log.h>
 #include <algorithm>
 #include <cctype>
+#include <iostream>
 #include <locale>
 #include <optional>
+#include <range/v3/algorithm/find_if.hpp>
+#include <range/v3/range.hpp>
+#include <range/v3/view.hpp>
 #include <sstream>
 
-std::string Utils::TrimLeft(const std::string &str) {
-  const std::string pattern = " \f\n\r\t\v";
-  return str.substr(str.find_first_not_of(pattern));
-}
+namespace Utils {
+  // TODO uses C++20, while project is C++17
+  // TODO in case it causes errors remove std::ranges (and add str.begin() and str.end() into find_if)
 
-std::string Utils::TrimRight(const std::string &str) {
-  const std::string pattern = " \f\n\r\t\v";
-  return str.substr(0, str.find_last_not_of(pattern) + 1);
-}
+  std::string Trim(const std::string &str) {
+    if (str.empty())
+      return {};
 
-std::string Utils::Trim(const std::string &str) { return TrimLeft(TrimRight(str)); }
+    std::string result = str;
 
-std::string Utils::Purify(const std::string &str) {
-  std::string result;
-  for (const unsigned char c: str) {
-    if (!isspace(c)) {
-      result += std::to_string(c);
+    result.erase(
+      ranges::find_if(result | ranges::view::reverse, IsNotWhitespace).base(),
+      result.end()
+      );
+    result.erase(
+      result.begin(),
+      ranges::find_if(result, IsNotWhitespace));
+
+    return result;
+  }
+
+  std::string Purify(const std::string &str) {
+    std::string result;
+    result.reserve(str.size());
+    for (const char c: str) {
+      if (!std::isspace(c)) {
+        result += c;
+      }
     }
+    return result;
   }
-  return result;
-}
 
-std::string Utils::Remove(const std::string &str, const char c) {
-  std::string result = str;
-  result.erase(std::ranges::remove(result, c).begin(), result.end());
-  return result;
-}
-
-std::string Utils::Remove(const std::string &str, const std::string &substr) {
-  std::string result = str;
-  size_t pos = std::string::npos;
-  while ((pos = result.find(substr, pos)) != std::string::npos) {
-    result.erase(pos, substr.size());
+  std::string Remove(const std::string &str, const char c) {
+    std::string result = str;
+    std::erase(result, c);
+    return result;
   }
-  return result;
-}
 
-
-template<typename T>
-std::optional<std::string> Utils::ToStringOpt(const T value) {
-  if constexpr (IsStdString<T>) {
-    return value;
-  } else if constexpr (IsStringView<T>) {
-    return std::string(value);
-  } else if constexpr (IsCString<T>) {
-    return value == nullptr ? "" : std::string(value);
-  } else if constexpr (std::same_as<std::remove_cvref_t<T>, bool>) {
-    std::ostringstream oss;
-    oss << std::boolalpha << value;
-    return oss.str();
-  } else if constexpr (Streamable<T>) {
-    std::ostringstream oss;
-    oss << value;
-    return oss.str();
-  } else {
-    return std::nullopt;
+  std::string Remove(const std::string &str, const std::string &substr) {
+    std::string result = str;
+    size_t pos = std::string::npos;
+    if (str.empty() || substr.empty())
+      return result;
+    while ((pos = result.find(substr, pos)) != std::string::npos) {
+      result.erase(pos, substr.size());
+    }
+    return result;
   }
-}
 
+} // namespace Utils
