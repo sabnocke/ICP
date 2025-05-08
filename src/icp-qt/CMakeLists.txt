@@ -17,6 +17,13 @@ set(PROJECT_SOURCES
         mainwindow.cpp
         mainwindow.h
         mainwindow.ui
+        GraphicsScene.cpp
+        GraphicsScene.h
+        StateItem.cpp
+        StateItem.h
+        TransitionItem.h
+        TransitionItem.cpp
+        EditorMode.h
 )
 
 set(CMAKE_INCLUDE_CURRENT_DIR ON)
@@ -25,9 +32,11 @@ if(${QT_VERSION_MAJOR} GREATER_EQUAL 6)
         MANUAL_FINALIZATION
 
         ${PROJECT_SOURCES}
-        Draggable.h Draggable.cpp
-        draggablewidget.h draggablewidget.cpp
-        style.css
+        GraphicsScene.h GraphicsScene.cpp
+        StateItem.h StateItem.cpp
+        TransitionItem.h TransitionItem.cpp
+        EditorMode.h
+
 
 
     )
