@@ -145,3 +145,14 @@ void GraphicsScene::setInitialState(StateItem* state) {
 void GraphicsScene::notifyStateRenamed(const QString& oldName, const QString& newName) {
   emit stateRenamed(oldName, newName);
 }
+
+// Finds a state item in the scene by its name
+StateItem* GraphicsScene::findStateByName(const QString& name) {
+  for (QGraphicsItem* item : items()) {
+    if (auto* state = qgraphicsitem_cast<StateItem*>(item)) {
+      if (state->getName() == name)
+        return state;
+    }
+  }
+  return nullptr;
+}

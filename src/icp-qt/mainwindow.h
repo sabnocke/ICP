@@ -41,6 +41,7 @@ private slots:
   void onStateRenamedInTable(const QString& oldName, const QString& newName); // Updates action table when a state is renamed
 
   void onExportClicked(); // For handling export menu action click (generate text file)
+  void onImportClicked(); // For handling import menu action click (import text file and populate gui components)
 
 private:
   Ui::MainWindow *ui;             // UI definition from Designer

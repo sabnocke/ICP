@@ -23,6 +23,8 @@ public:
   StateItem* getInitialState() const { return initialState; }
   // Notifies the scene that a state's name has been changed
   void notifyStateRenamed(const QString& oldName, const QString& newName);
+  // Searches and returns a pointer to the state with the given name (or nullptr if not found)
+  StateItem* findStateByName(const QString& name);
 
 protected:
   // Handles mouse click events depending on current interaction mode

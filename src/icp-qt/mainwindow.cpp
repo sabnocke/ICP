@@ -3,6 +3,10 @@
 #include "EditorMode.h"
 #include "GraphicsScene.h"
 #include "AutomatModel.h"
+
+//#include "parser.h"
+//#include "AutomatLib.h"
+
 #include <QGraphicsDropShadowEffect>
 #include <QFrame>
 #include <QInputDialog>
@@ -59,6 +63,7 @@ void MainWindow::setupConnections() {
   connect(scene, &GraphicsScene::stateRenamed, this, &MainWindow::onStateRenamedInTable);
 
   connect(ui->actionExport, &QAction::triggered, this, &MainWindow::onExportClicked);
+  connect(ui->actionImport, &QAction::triggered, this, &MainWindow::onImportClicked);
 
 }
 
@@ -182,7 +187,7 @@ void MainWindow::onStateRenamedInTable(const QString& oldName, const QString& ne
 }
 
 // Handles export logic
-// Opens file dialog, gathers data from UI/scene into model, then attempts to export it
+// Opens file dialog, gathers data from GUI into model, then attempts to export it
 // Displays a warning dialog if saving fails
 void MainWindow::onExportClicked() {
   QString fileName = QFileDialog::getSaveFileName(this, "Export Automat", "automat_model", "Text Files (*.txt)");
@@ -193,4 +198,14 @@ void MainWindow::onExportClicked() {
   if (!model.exportInfo(fileName)) {
     QMessageBox::warning(this, "Export Error", "Could not write to the file.");
   }
+}
+
+// Handles import logic
+// Opens a file dialog, parses automat model from the selected file using the parser,
+// and populates the GUI with the imported model
+void MainWindow::onImportClicked() {
+  QString filePath = QFileDialog::getOpenFileName(this, "Import FSM", "", "FSM files (*.txt);;All files (*.*)");
+  if (filePath.isEmpty()) return;
+
+  // TODO: Use Parser::parser::parseAutomat() to parse
 }
