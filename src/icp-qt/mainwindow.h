@@ -15,8 +15,13 @@ class MainWindow : public QMainWindow {
   Q_OBJECT
 
 public:
+  // Constructs the main window and sets up the UI
   explicit MainWindow(QWidget *parent = nullptr);
   ~MainWindow();
+
+  // Expose for AutomatModel
+  Ui::MainWindow* getUi() const;
+  GraphicsScene* getScene() const { return scene; }
 
 private slots:
   void onAddStateClicked();       // For handling AddState button
@@ -31,6 +36,11 @@ private slots:
 
   void onAddOutputClicked();      // For handling AddOutput button
   void onRemoveOutputClicked();   // For handling RemoveOutput button
+
+  void onStateAddedToTable(const QString& stateName);      // Updates action table when a state is added
+  void onStateRenamedInTable(const QString& oldName, const QString& newName); // Updates action table when a state is renamed
+
+  void onExportClicked(); // For handling export menu action click (generate text file)
 
 private:
   Ui::MainWindow *ui;             // UI definition from Designer

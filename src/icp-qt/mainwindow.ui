@@ -30,7 +30,7 @@
       <x>1290</x>
       <y>70</y>
       <width>71</width>
-      <height>31</height>
+      <height>41</height>
      </rect>
     </property>
     <property name="text">
@@ -41,9 +41,9 @@
     <property name="geometry">
      <rect>
       <x>1290</x>
-      <y>110</y>
+      <y>120</y>
       <width>71</width>
-      <height>31</height>
+      <height>41</height>
      </rect>
     </property>
     <property name="text">
@@ -54,9 +54,9 @@
     <property name="geometry">
      <rect>
       <x>1290</x>
-      <y>150</y>
+      <y>170</y>
       <width>71</width>
-      <height>31</height>
+      <height>41</height>
      </rect>
     </property>
     <property name="text">
@@ -236,27 +236,14 @@
      <string>-</string>
     </property>
    </widget>
-   <widget class="QTableWidget" name="tableWidget">
-    <property name="geometry">
-     <rect>
-      <x>370</x>
-      <y>550</y>
-      <width>911</width>
-      <height>101</height>
-     </rect>
-    </property>
-   </widget>
-   <widget class="QLabel" name="label_4">
+   <widget class="QTableWidget" name="stateActionsTable">
     <property name="geometry">
      <rect>
       <x>370</x>
       <y>530</y>
-      <width>51</width>
-      <height>16</height>
+      <width>911</width>
+      <height>211</height>
      </rect>
-    </property>
-    <property name="text">
-     <string>Actions</string>
     </property>
    </widget>
    <widget class="QLabel" name="label_5">
@@ -272,6 +259,19 @@
      <string>Comment</string>
     </property>
    </widget>
+   <widget class="QPushButton" name="moveButton_2">
+    <property name="geometry">
+     <rect>
+      <x>1290</x>
+      <y>240</y>
+      <width>71</width>
+      <height>41</height>
+     </rect>
+    </property>
+    <property name="text">
+     <string>X</string>
+    </property>
+   </widget>
   </widget>
   <widget class="QMenuBar" name="menubar">
    <property name="geometry">
@@ -282,8 +282,26 @@
      <height>20</height>
     </rect>
    </property>
+   <widget class="QMenu" name="menuFIle">
+    <property name="title">
+     <string>File</string>
+    </property>
+    <addaction name="actionImport"/>
+    <addaction name="actionExport"/>
+   </widget>
+   <addaction name="menuFIle"/>
   </widget>
   <widget class="QStatusBar" name="statusbar"/>
+  <action name="actionImport">
+   <property name="text">
+    <string>Import</string>
+   </property>
+  </action>
+  <action name="actionExport">
+   <property name="text">
+    <string>Export</string>
+   </property>
+  </action>
  </widget>
  <resources/>
  <connections/>

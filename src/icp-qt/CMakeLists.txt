@@ -36,6 +36,7 @@ if(${QT_VERSION_MAJOR} GREATER_EQUAL 6)
         StateItem.h StateItem.cpp
         TransitionItem.h TransitionItem.cpp
         EditorMode.h
+        AutomatModel.h AutomatModel.cpp
 
 
 
