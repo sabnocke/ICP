@@ -67,3 +67,7 @@ This project uses following external libraries
  - [reproc](https://github.com/DaanDeMeyer/reproc)
  - [abseil](https://abseil.io)
  - [re2](https://github.com/google/re2/tree/main)
+ - [fast_float](https://github.com/fastfloat/fast_float)
+ - [range-v3](https://github.com/ericniebler/range-v3)
+ - [libzmq](https://github.com/zeromq/libzmq/tree/master)
+ - [zmgpp](https://github.com/zeromq/zmqpp/tree/develop)

@@ -14,44 +14,46 @@
 
 
 namespace AutomatLib {
+
   void Automat::addState(const std::string &name, const std::string &action) {
     states[name] = State{name, action};
   }
   void Automat::addState(const std::tuple<std::string, std::string> &result) {
-    addState(std::get<0>(result), std::get<1>(result));
+    states[std::get<0>(result)] = State{std::get<0>(result), std::get<1>(result)};
   }
 
   void Automat::addTransition(const std::string &from, const std::string &to, const std::string &input, const std::string &cond, const std::string &delay) {
     transitions.push_back({from, to, input, cond, delay});
   }
-
-  void Automat::addTransition(const Parser::ParseTransitionRecord &result) {
-    addTransition(result.from, result.to, result.input, result.cond, result.delay);
+  template<typename T>
+  void Automat::addTransition(const Parser::TransitionRecord<T> &result) {
+    transitions.push_back({result.from, result.to, result.input, result.cond, result.delay});
   }
 
   void Automat::addVariable(const std::string &type, const std::string &name, const std::string &value) {
     variables[name] = std::make_pair(type, value);
   }
-  void Automat::addVariable(const Parser::ParseVariableRecord &result) {
-    addVariable(result.type, result.name, result.value);
+
+  template<typename T>
+  void Automat::addVariable(const Parser::VariableRecord<T> &result) {
+    variables[result.name] = std::make_pair(result.type, result.name);
   }
 
-  //TODO move this to helper function class for AutomatRuntime
-  std::optional<std::string> Automat::valueof(const std::string &name) {
-    if (inputs.contains(name)) {
-      return inputs[name];
-    }
-    return std::nullopt;
+  void Automat::addInput(const std::string &name) {
+    inputs.push_back(name);
+  }
+
+  void Automat::addOutput(const std::string &name) {
+    outputs.push_back(name);
+  }
+
+  void Automat::PrepareIncludes() {
+    oss << "#include <string>" << std::endl;
   }
 
 
-  //TODO move this to helper function class for AutomatRuntime
-  template <typename T>
-  bool Automat::output(const std::string &outputName, const T &value) {
-    if (outputs.contains(outputName)) {
-      outputs[outputName] = Utils::ToStringOpt(value);
-      return true;
-    }
-    return false;
+  void Automat::PrepareHelperVariables() {
+    oss << "std::string "
   }
+
 }

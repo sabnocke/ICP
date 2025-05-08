@@ -1,4 +1,4 @@
-cmake_minimum_required(VERSION 3.16)
+cmake_minimum_required(VERSION 3.30)
 
 project(fsm VERSION 0.1 LANGUAGES CXX)
 
@@ -6,7 +6,8 @@ include(FetchContent)
 set(CMAKE_CXX_STANDARD 17)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
 set(CMAKE_CXX_EXTENSIONS OFF)
-
+unset(ENV{VCPKG_ROOT} )
+#set(CMAKE_TOOLCHAIN_FILE "C:/Users/ReWyn/^/projects/ICP/libs/vcpkg/scripts/buildsystems/vcpkg.cmake")
 
 
 set(REPROC++ ON CACHE BOOL "Build the reproc C++ wrapper")
@@ -47,21 +48,41 @@ FetchContent_Declare(
 )
 FetchContent_MakeAvailable(ctre)
 
+FetchContent_Declare(
+        fast_float
+        GIT_REPOSITORY https://github.com/fastfloat/fast_float.git
+        GIT_TAG tags/v8.0.2
+        GIT_SHALLOW TRUE)
+FetchContent_MakeAvailable(fast_float)
+
 add_executable(fsm
         fsm/AutomatLib.cpp
         fsm/parser.cpp
         fsm/Utils.cpp
         fsm/AutomatRuntime.cpp
         fsm/main.cpp
+        fsm/fsmConstructed.template.cpp
+        fsm/tof5s.template.cpp
+        fsm/messages/server.cpp
+        fsm/messages/server.h
+        fsm/messages/client.cpp
+        fsm/messages/client.h
 )
 
+find_package(cppzmq)
+find_package(ZeroMQ CONFIG REQUIRED)
 
 target_link_libraries(fsm PRIVATE
         reproc++
         ctre::ctre  # Considered obsolete
         absl::base
         absl::strings
+        absl::log
+        absl::log_initialize
         range-v3::range-v3
         re2::re2
+        fast_float
+        libzmq
+        cppzmq
 )
 
