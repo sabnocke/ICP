@@ -69,5 +69,5 @@ This project uses following external libraries
  - [re2](https://github.com/google/re2/tree/main)
  - [fast_float](https://github.com/fastfloat/fast_float)
  - [range-v3](https://github.com/ericniebler/range-v3)
- - [libzmq](https://github.com/zeromq/libzmq/tree/master)
- - [zmgpp](https://github.com/zeromq/zmqpp/tree/develop)
+ - [libzmq](https://github.com/zeromq/libzmq/tree/master)  << might get removed later
+ - [zmgpp](https://github.com/zeromq/zmqpp/tree/develop)   << might get removed later
