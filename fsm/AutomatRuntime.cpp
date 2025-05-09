@@ -3,21 +3,23 @@
 #include <absl/container/btree_set.h>
 #include <absl/container/node_hash_map.h>
 #include <fast_float/fast_float.h>
+
+#include <chrono>
 #include <range/v3/algorithm/find_if.hpp>
 #include <range/v3/range/conversion.hpp>
 #include <range/v3/view/filter.hpp>
 #include <range/v3/view/map.hpp>
-
-#include <chrono>
 #include <thread>
 #include <utility>
 
 #include "AutomatLib.h"
 #include "Utils.h"
 #include "messages/p2p.h"
+#include "types/transitions.h"
 
 namespace AutomatRuntime {
 #define NOTHING std::nullopt
+using namespace types;
 
 Runtime::Runtime(AutomatLib::Automat& automat) : Automat(automat) {
   Name = automat.Name;
@@ -27,9 +29,9 @@ Runtime::Runtime(AutomatLib::Automat& automat) : Automat(automat) {
 }
 
 void Runtime::GroupTransitions() {
-  for (const auto& name : states | ranges::views::keys) {
+  for (const auto& name : states.GetNames()) {
     TransitionGroup grouping;
-    for (const auto& transition : transitions) {
+    for (const Transition& transition : transitions) {
       if (transition.from == name) {
         grouping.Add(transition);
       }
@@ -108,117 +110,5 @@ Numeric StringToNumeric(const std::string_view str) {
   return Numeric::Empty();
 }
 
-
-
-#pragma region TransitionGroup
-
- TransitionGroup::TransitionGroup() {
-  _transition_groups = {};
-  _transitions = {};
-}
-
-
-void TransitionGroup::Add(const AutomatLib::Transition& transition) {
-  _transitions.insert(transition);
-  Count++;
-}
-void TransitionGroup::Add(const std::string& from, const std::string& to,
-                          const std::string& input,
-                          const std::optional<std::function<bool()>>& condition,
-                          const std::string& delay) {
-  if (condition.has_value()) {
-    _transitions.insert({from, to, input, {}, condition.value(), delay});
-    Count++;
-  }
-}
-
-TransitionGroup TransitionGroup::WhereNoEvent() {
-  return Where([](const auto& tr){ return tr.input == ""; });
-}
-TransitionGroup TransitionGroup::WhereTimer() {
-  return Where([](const auto& tr){ return tr.delay != ""; });
-}
-TransitionGroup TransitionGroup::WhereCond() {
-  return Where([](const auto& tr) { return tr.condition.has_value() && tr.condition.value()(); });
-}
-
-/// if none := 0
-///
-/// if cond := 1
-///
-/// if delay := 2
-///
-/// if cond + delay := 3
-///
-/// if input := 4
-///
-/// if cond + input := 5
-///
-/// if input + delay := 6
-///
-/// if input + delay + cond := 7
-/// @param transition From what to calculate the cost
-/// @return Cost of transition
-int TransitionGroup::GetCost(const AutomatLib::Transition& transition) {
-  auto [from, to, input, cond, condition, delay] = transition;
-  int total = 0;
-  if (!cond.empty())
-    total += 1;
-  if (!delay.empty())
-    total += 1 << 1;
-  if (!input.empty())
-    total += 1 << 2;
-  return total;
-}
-
-absl::btree_set<AutomatLib::Transition> TransitionGroup::Cost(const int cost) {
-  auto res = absl::btree_set<AutomatLib::Transition>();
-  for (const auto& transition : _transitions) {
-    if (GetCost(transition) == cost) {
-      res.insert(transition);
-    }
-  }
-  return res;
-}
-
-size_t TransitionGroup::CostAtMost(const int cost) {
-  size_t total = 0;
-  for (const auto& transition : _transitions) {
-    if (GetCost(transition) <= cost)
-      total++;
-  }
-  return total;
-}
-
-TGT TransitionGroup::GroupTransitions() {
-  TGT transitions;
-  for (const auto& transition : _transitions) {
-    transitions[transition.from].Add(transition);
-  }
-  _transition_groups = transitions;
-  return transitions;
-}
-
-TransitionGroup TransitionGroup::Retrieve(const std::string& input) {
-  if (_transition_groups.empty())
-    GroupTransitions();
-
-  if (_transition_groups.contains(input))
-    return _transition_groups.at(input);
-
-  return Empty();
-}
-
-TransitionGroup TransitionGroup::Where(
-    const std::function<bool(AutomatLib::Transition)>& pred) {
-  TransitionGroup group;
-  for (const auto& transition : _transitions) {
-    if (pred(transition))
-      group.Add(transition);
-  }
-  return group;
-}
-
-#pragma endregion
 
 }  // namespace AutomatRuntime

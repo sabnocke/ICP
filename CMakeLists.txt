@@ -63,12 +63,22 @@ add_executable(fsm
         fsm/AutomatRuntime.cpp
         fsm/main.cpp
         fsm/views.h
+        fsm/types/transitions.cpp
+        fsm/types/transitions.h
+        fsm/types/variables.cpp
+        fsm/types/transitions.h
+        fsm/types/all_types.h
+        fsm/types/states.cpp
+        fsm/types/states.h
+        fsm/timer.cpp
+        fsm/timer.h
         #        fsm/fsmConstructed.template.cpp
 #        fsm/tof5s.template.cpp
 #        fsm/messages/p2p.cpp
 )
 
 find_package(cppzmq)
+find_package(rxcpp CONFIG)
 # find_package(ZeroMQ CONFIG REQUIRED)
 
 add_subdirectory(./libs/range-v3)
@@ -82,6 +92,7 @@ target_link_libraries(fsm PRIVATE
         absl::container_common
         absl::log
         absl::log_initialize
+        rxcpp
 #        libzmq-static
 #        cppzmq-static
 )

@@ -2,28 +2,30 @@
 
 
 #include "AutomatLib.h"
-#include <absl/container/btree_set.h>
 #include <absl/container/node_hash_map.h>
 
 #include <iomanip>
 #include <map>
-#include <optional>
-#include <ostream>
 #include <string>
 #include <unordered_map>
 #include <variant>
 #include <vector>
 
+#include "types/all_types.h"
 
 namespace AutomatLib {
 class Automat;
-struct Transition;
 }  // namespace AutomatLib
 
-namespace AutomatRuntime {
+namespace types {
+struct Transition;
 struct TransitionGroup;
+}
+
+namespace AutomatRuntime {
+using namespace types;
 using SignalsType = absl::node_hash_map<std::string, std::string>;
-using TGT = absl::node_hash_map<std::string, TransitionGroup>;
+
 
 template <typename T, typename Variant>
 struct is_in_variant;
@@ -100,39 +102,7 @@ struct Numeric {
   }
 };
 
-struct TransitionGroup {
-private:
-  absl::btree_set<AutomatLib::Transition> _transitions;
-  TGT _transition_groups;
-public:
-  TransitionGroup();
-  size_t Count = 0;
-  size_t Size() const { return _transitions.size(); }
-  bool Some() const { return Size() != 0; }
-  static TransitionGroup Empty() {
-    auto tg = TransitionGroup{};
-    tg._transition_groups = {};
-    return tg;
-  }
-  // TransitionGroup() = default;
-  void Add(const AutomatLib::Transition& transition);
-  void Add(const std::string& from, const std::string& to,
-           const std::string& input,
-           const std::optional<std::function<bool()>>& condition,
-           const std::string& delay);
-  absl::btree_set<AutomatLib::Transition> Cost(int cost);
-  size_t CostAtMost(int cost);
-  static int GetCost(const AutomatLib::Transition& transition);
-  TGT GroupTransitions();
-  TransitionGroup Retrieve(const std::string& input);
-  TransitionGroup Select(std::function<AutomatLib::Transition(AutomatLib::Transition)> pred);
-  TransitionGroup Where(
-      const std::function<bool(AutomatLib::Transition)>& pred);
-  TransitionGroup WhereNoEvent();
-  TransitionGroup WhereTimer();
-  TransitionGroup WhereCond();
 
-};
 
 bool WaitFor(int delay);
 
@@ -157,8 +127,8 @@ class Runtime {
 
  private:
   AutomatLib::Automat& Automat;
-  std::vector<AutomatLib::Transition> transitions;
-  std::unordered_map<std::string, AutomatLib::State> states;
+  std::vector<Transition> transitions;
+  StateGroup states;
   std::unordered_map<std::string, TransitionGroup> groupedTransitions;
 };
 }  // namespace AutomatRuntime

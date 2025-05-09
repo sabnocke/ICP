@@ -204,12 +204,12 @@ std::optional<std::string> Parser::extractComment(
   return NOTHING;
 }
 
-std::optional<VariableRecord> Parser::parseVariable(
+std::optional<AutomatLib::Variable> Parser::parseVariable(
     const std::string &line) const {
   const auto trimmed = Utils::Trim(line);
   std::string type, name, value;
   if (RE2::FullMatch(trimmed, *variables_pattern_, &type, &name, &value)) {
-    return VariableRecord{type, name, value};
+    return AutomatLib::Variable{type, name, value};
   }
   return NOTHING;
 }

@@ -7,6 +7,8 @@
 #include "range/v3/algorithm/find_if.hpp"
 #include "range/v3/range/conversion.hpp"
 #include "range/v3/view.hpp"
+#include <iomanip>
+#include <sstream>
 
 namespace Utils {
 
@@ -15,14 +17,14 @@ std::string Trim(const std::string &str) {
     return "";
 
   auto result_view =
-      str | ranges::views::drop_while(IsWhiteSpace) | ranges::view::reverse |
-      ranges::view::drop_while(IsWhiteSpace) | ranges::view::reverse;
+      str | ranges::views::drop_while(IsWhiteSpace) | ranges::views::reverse |
+      ranges::views::drop_while(IsWhiteSpace) | ranges::views::reverse;
 
   return result_view | ranges::to<std::string>();
 }
 
-std::vector<std::string> TrimEach(std::vector<std::string> &stringVec) {
-  return stringVec | ranges::views::transform([](const std::string &str) {
+std::vector<std::string> TrimEach(std::vector<std::string> &vec) {
+  return vec | ranges::views::transform([](const std::string &str) {
            return Trim(str);
          }) |
          ranges::to<std::vector<std::string>>;
@@ -76,7 +78,6 @@ bool Contains(const std::string &str, const std::string_view view) {
   return absl::StrContains(lower, lower_s);
 }
 
-
 std::vector<std::string> Split(const std::string &str, const char delim) {
   auto res =
       str | ranges::views::split(delim) | ranges::to<std::vector<std::string>>;
@@ -87,5 +88,12 @@ std::vector<std::string> Split(const std::string &str,
   return str | ranges::views::split(delim) |
          ranges::to<std::vector<std::string>>;
 }
+
+std::string Quote(const std::string &str) {
+  std::stringstream ss;
+  ss << std::quoted(str);
+  return ss.str();
+}
+
 
 }  // namespace Utils

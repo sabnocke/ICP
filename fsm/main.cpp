@@ -22,6 +22,7 @@ int main() {
   if (auto res = parser.parseTransition("    IDLE --> ACTIVE: in [ atoi(valueof(\"in\")) == 1 ]"); res.has_value()) {
     std::cout << res.value() << std::endl;
   }
+  std::cout << Utils::Quote("IDLE : { output(\"out\", 0) }");
   return 0;
 
 

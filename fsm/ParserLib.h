@@ -6,12 +6,14 @@
 #include <tuple>
 
 #include "AutomatLib.h"
+#include "types/all_types.h"
 
 namespace AutomatLib {
 class Automat;
 }
 
 namespace ParserLib {
+using namespace types;
 struct TransitionRecord {
   std::string from;
   std::string to;
@@ -66,7 +68,7 @@ class Parser {
       const std::string &file);  // TODO change it to optional
   [[nodiscard]] std::optional<std::tuple<std::string, std::string>> parseState(
       const std::string &line) const;
-  [[nodiscard]] std::optional<VariableRecord> parseVariable(
+  [[nodiscard]] std::optional<Variable> parseVariable(
       const std::string &line) const;
   [[nodiscard]] std::optional<TransitionRecord> parseTransition(
       const std::string &line) const;

@@ -8,18 +8,19 @@ namespace tof5s {
 using std::string;
 using std::string_view;
 using namespace AutomatRuntime;
+
+using std::function;
 using AutomatRuntime::Runtime;
 
 #define INPUT(name) Runtime::RegisterSignal(in_map, name)
 #define OUTPUT(name) Runtime::RegisterSignal(out_map, name)
 
+
 SignalsType in_map = {};
 SignalsType out_map = {};
-std::function strtn = [](const string_view value) {return StringToNumeric(value);};
-std::function valueof = [&](const string& name) {return Runtime::Load(in_map, name);};
-template <typename T> std::function output = [](const string& name, const T& value) {return Runtime::Store(out_map, value, name);};
-
-inline bool terminate = false;
+function strtn = [](const string_view value) {return StringToNumeric(value);};
+function valueof = [&](const string& name) {return Runtime::Load(in_map, name);};
+template <typename T> function output = [](const string& name, const T& value) {return Runtime::Store(out_map, value, name);};
 
 void ChangeState() {}
 
@@ -42,9 +43,9 @@ int timeout = 5000;
 
 
 #pragma region state actions
-std::function idle = []() { output("out", 0); };
-std::function active = []() { output("out", 1); };
-std::function timing = []() {};
+function idle = []() { output("out", 0); };
+function active = []() { output("out", 1); };
+function timing = []() {};
 #pragma endregion
 
 #pragma region transitions
@@ -64,6 +65,7 @@ void Active2Timing() {
 #pragma endregion
 
 void execute() {
+  bool terminate = false;
   TransitionGroup group;
   group.Add(
       "IDLE", "ACTIVE", "in", []() { return strtn(valueof("in")) == 1; }, "");
@@ -79,12 +81,13 @@ void execute() {
 
   while (!terminate) {
     auto res = group.Retrieve(activeState);
-    if (res.Some()) {   //* alternatively "independent" means any viable
-      if (auto res2 = res.WhereTimer(); res2.Some()) {
-        //TODO there are timers to be set
-      } else if (auto res3 = res.WhereCond(); res3.Some()) {
-        //TODO there are immediate transitions
-      }
+    if (res.IsEmpty()) {   //* alternatively "independent" means any viable
+      continue; // or end?
+    }
+    if (auto res2 = res.WhereTimer(); res2.Some()) {
+      //TODO there are timers to be set
+    } else if (auto res3 = res.WhereCond(); res3.Some()) {
+      //TODO there are immediate transitions
     }
     //TODO remove timers of inactive states, if there are any
     //? first has to maintain which timers were set in which state

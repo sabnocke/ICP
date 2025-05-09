@@ -59,22 +59,23 @@ static bool IsNotWhitespace(const unsigned char ch) {
 }
 static bool IsWhiteSpace(const unsigned char ch) { return std::isspace(ch); }
 
-static std::string Remove(const std::string &str, char c);
-static std::string Remove(const std::string &str, const std::string &substr);
-static std::string ToLower(const std::string &str);
+std::string Remove(const std::string &str, char c);
+std::string Remove(const std::string &str, const std::string &substr);
+std::string ToLower(const std::string &str);
 std::string Trim(const std::string &str);
 std::string_view Trim(std::string_view str);
 bool Contains(const std::string &str, std::string_view view);
 std::vector<std::string> Split(const std::string &str, const std::string& delim);
 std::vector<std::string> Split(const std::string &str, char delim);
 std::vector<std::string> TrimEach(std::vector<std::string> &vec);
+std::string Quote(const std::string& str);
 template <typename... Args>
 bool FindAll(const std::string_view str, Args... args) {
   return ((str.find(args) != std::string::npos) && ...);
 }
 
 template <typename T>
-static std::optional<std::string> ToStringOpt(const T &value) {
+std::optional<std::string> ToStringOpt(const T &value) {
   using DecayedT = std::decay_t<T>;
   if constexpr (detail::is_std_string_v<DecayedT>) {
     return value;
@@ -102,7 +103,7 @@ static std::optional<std::string> ToStringOpt(const T &value) {
 }
 
 template <typename T>
-static std::optional<std::string> FormatToString(const T &value) {
+std::optional<std::string> FormatToString(const T &value) {
   using DecayedT = std::decay_t<T>;
 
   if constexpr (detail::is_std_string_v<DecayedT> ||
