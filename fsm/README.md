@@ -43,4 +43,7 @@ However, that requires handling communication of inputs/outputs from __FSM__ to 
 - [grpc](https://grpc.io)
 - [Boost.Interprocess](https://www.boost.org/doc/libs/1_84_0/doc/html/interprocess.html)
 - [ZeroMQ](https://zeromq.org)
-- 
+
+---
+
+> messages/p2p.{h,cpp} contains example of ipc using mq (specifically zeromq/cppmq)
