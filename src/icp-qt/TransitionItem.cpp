@@ -35,6 +35,8 @@ QPointF TransitionItem::adjustEndpoint(QPointF from, QPointF to, qreal radius) {
   return line.p1() + (line.p2() - line.p1());
 }
 
+// Recalculates and updates the transition path, arrowhead, and label position
+// Supports normal, curved, and self-loop transitions
 void TransitionItem::updatePosition() {
   if (!fromState || !toState) return;
 

@@ -39,11 +39,14 @@ void GraphicsScene::mousePressEvent(QGraphicsSceneMouseEvent* event) {
 
 // Creates and adds a new state to the scene
 // In default states are named State1, State2, etc.
+// After creation, emits stateAdded() so actions table can be updated
 void GraphicsScene::createStateAt(const QPointF& pos) {
   static int counter = 1; // Counter for automatic naming
   auto* state = new StateItem("State" + QString::number(counter++));
   state->setPos(pos);     // Position where user clicked
   addItem(state);         // Add to the scene
+
+  emit stateAdded(state->getName());
 }
 
 // Handles click on a second state while in AddTransition mode
@@ -135,4 +138,21 @@ void GraphicsScene::setInitialState(StateItem* state) {
   }
   state->setInitial(true);
   initialState = state;
+}
+
+// Notifies that a state has been renamed
+// This allows action table to update the corresponding row to the new name
+void GraphicsScene::notifyStateRenamed(const QString& oldName, const QString& newName) {
+  emit stateRenamed(oldName, newName);
+}
+
+// Finds a state item in the scene by its name
+StateItem* GraphicsScene::findStateByName(const QString& name) {
+  for (QGraphicsItem* item : items()) {
+    if (auto* state = qgraphicsitem_cast<StateItem*>(item)) {
+      if (state->getName() == name)
+        return state;
+    }
+  }
+  return nullptr;
 }

@@ -2,10 +2,18 @@
 #include "ui_mainwindow.h"
 #include "EditorMode.h"
 #include "GraphicsScene.h"
+#include "AutomatModel.h"
+
+//#include "parser.h"
+//#include "AutomatLib.h"
+
 #include <QGraphicsDropShadowEffect>
 #include <QFrame>
 #include <QInputDialog>
+#include <QFileDialog>
+#include <QMessageBox>
 
+// Constructor: Initializes the main window, sets up the scene, connects UI signals, and defaults to AddState mode
 MainWindow::MainWindow(QWidget *parent)
     : QMainWindow(parent), ui(new Ui::MainWindow), scene(new GraphicsScene(this)) {
   ui->setupUi(this);
@@ -14,10 +22,20 @@ MainWindow::MainWindow(QWidget *parent)
   onAddStateClicked(); // Init with state AddState
   // Create a blue frame border around the graphics view manually
   ui->graphicsView->setStyleSheet("border: 1px solid #2196f3;");
+  // Initialize actions table
+  ui->stateActionsTable->setColumnCount(2);
+  ui->stateActionsTable->setHorizontalHeaderLabels({"State", "Action"});
+  ui->stateActionsTable->horizontalHeader()->setStretchLastSection(true);
 }
 
+// Destructor: Cleans up the UI resources
 MainWindow::~MainWindow() {
   delete ui;
+}
+
+// Provides access to the UI object for external components (AutomatModel)
+Ui::MainWindow* MainWindow::getUi() const {
+  return ui;
 }
 
 // Initializes the FSM graphics scene and sets it into the view
@@ -40,6 +58,13 @@ void MainWindow::setupConnections() {
 
   connect(ui->addOutputButton, &QPushButton::clicked, this, &MainWindow::onAddOutputClicked);
   connect(ui->removeOutputButton, &QPushButton::clicked, this, &MainWindow::onRemoveOutputClicked);
+
+  connect(scene, &GraphicsScene::stateAdded, this, &MainWindow::onStateAddedToTable);
+  connect(scene, &GraphicsScene::stateRenamed, this, &MainWindow::onStateRenamedInTable);
+
+  connect(ui->actionExport, &QAction::triggered, this, &MainWindow::onExportClicked);
+  connect(ui->actionImport, &QAction::triggered, this, &MainWindow::onImportClicked);
+
 }
 
 // Switches scene mode to AddState
@@ -135,4 +160,52 @@ void MainWindow::onRemoveOutputClicked() {
   if (item) {
     delete item;
   }
+}
+
+// Handles state addition by appending a new row into the state actions table
+// The first column shows the state name (non-editable), second is editable action text
+void MainWindow::onStateAddedToTable(const QString& stateName) {
+  int row = ui->stateActionsTable->rowCount();
+  ui->stateActionsTable->insertRow(row);
+
+  QTableWidgetItem* nameItem = new QTableWidgetItem(stateName);
+  nameItem->setFlags(nameItem->flags() & ~Qt::ItemIsEditable);  // Non-editable
+  ui->stateActionsTable->setItem(row, 0, nameItem);
+
+  QTableWidgetItem* actionItem = new QTableWidgetItem();
+  ui->stateActionsTable->setItem(row, 1, actionItem);
+}
+
+// Updates the state name in the actions table when a state is renamed in the scene
+void MainWindow::onStateRenamedInTable(const QString& oldName, const QString& newName) {
+  for (int i = 0; i < ui->stateActionsTable->rowCount(); ++i) {
+    if (ui->stateActionsTable->item(i, 0)->text() == oldName) {
+      ui->stateActionsTable->item(i, 0)->setText(newName);
+      break;
+    }
+  }
+}
+
+// Handles export logic
+// Opens file dialog, gathers data from GUI into model, then attempts to export it
+// Displays a warning dialog if saving fails
+void MainWindow::onExportClicked() {
+  QString fileName = QFileDialog::getSaveFileName(this, "Export Automat", "automat_model", "Text Files (*.txt)");
+  if (fileName.isEmpty()) return;
+
+  AutomatModel model;
+  model.gatherInfo(this);
+  if (!model.exportInfo(fileName)) {
+    QMessageBox::warning(this, "Export Error", "Could not write to the file.");
+  }
+}
+
+// Handles import logic
+// Opens a file dialog, parses automat model from the selected file using the parser,
+// and populates the GUI with the imported model
+void MainWindow::onImportClicked() {
+  QString filePath = QFileDialog::getOpenFileName(this, "Import FSM", "", "FSM files (*.txt);;All files (*.*)");
+  if (filePath.isEmpty()) return;
+
+  // TODO: Use Parser::parser::parseAutomat() to parse
 }

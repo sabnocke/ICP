@@ -27,11 +27,19 @@ StateItem::StateItem(const QString& name, QGraphicsItem* parent)
 }
 
 // Change the state's internal name
+// Notifies the scene about the name change so it can update actions table
 void StateItem::setName(const QString& newName) {
+  QString oldName = stateName;
   stateName = newName;
   if (label) {
     label->setPlainText(newName);
     label->setPos(-label->boundingRect().width() / 2, -label->boundingRect().height() / 2);
+  }
+
+  if (scene()) {
+    if (auto* gscene = dynamic_cast<GraphicsScene*>(scene())) {
+      gscene->notifyStateRenamed(oldName, newName);
+    }
   }
 }
 
