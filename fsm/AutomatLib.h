@@ -1,69 +1,92 @@
-//
-// Created by ReWyn on 28.04.2025.
-//
-
 #pragma once
 
+#include <absl/strings/str_format.h>
+
 #include <functional>
-#include <optional>
-#include <string>
+#include <ostream>
 #include <sstream>
+#include <string>
 
-// #include "absl/synchronization/internal/waiter_base.h"
+#include "ParserLib.h"
 
-namespace Parser {
-  template<typename StringType>
-  struct TransitionRecord;
-  template<typename StringType>
-  struct VariableRecord;
-}
+namespace ParserLib {
+struct TransitionRecord;
+struct VariableRecord;
+}  // namespace ParserLib
 
 namespace AutomatLib {
-  struct Transition {
-    std::string from;
-    std::string to;
-    std::string input;
-    std::string cond;
-    std::string delay;
-  };
-  struct State {
-    std::string name;
-    std::string action;
-  };
+struct Transition {
+  std::string from;
+  std::string to;
+  std::string input;
+  std::string cond;
+  std::optional<std::function<bool()>> condition;
+  std::string delay;
 
-  class Automat {
-  public:
-    [[deprecated("Use tuple version")]] void addState(const std::string &name, const std::string &action);
-    void addState(const std::tuple<std::string, std::string> &result);
-    [[deprecated("Use TransitionRecord")]] void addTransition(const std::string &from, const std::string &to, const std::string &input, const std::string &cond, const std::string &delay);
-    template<typename T>
-    void Automat::addTransition(const Parser::TransitionRecord<T> &result);
-    [[deprecated("Use VariableRecord")]] void addVariable(const std::string &type, const std::string &name,
-                                                          const std::string &value);
-    template<class T>
-    void addVariable(const Parser::VariableRecord<T> &result);
-    void addInput(const std::string &name);
-    void addOutput(const std::string &name);
-    // template<typename T>
-    // void addVariable(Parser::VariableRecord<T> &result);
-    [[deprecated("Will be moved elsewhere")]] std::optional<std::string> valueof(const std::string &name);
-    template <typename T>
-    [[deprecated("Will be moved elsewhere")]] bool output(const std::string &outputName, const T &value);
-    std::string Name;
-    std::string Comment;
-    void PrepareHelperVariables();
-    void PrepareIncludes();
-  private:
-    std::unordered_map<std::string, State> states;
-    std::vector<Transition> transitions;
-    std::vector<std::string> inputs;
-    std::vector<std::string> outputs;
-    // std::unordered_map<std::string, std::string> inputs;
-    // std::unordered_map<std::string, std::string> outputs;
-    std::unordered_map<std::string, std::pair<std::string, std::string>> variables;
-    std::string currentState;
-    bool firstRun = true;
-    std::ostringstream oss;
-  };
+  Transition(std::string from, std::string to, std::string input,
+             std::string cond, std::optional<std::function<bool()>> condition,
+             std::string delay)
+      : from(std::move(from)),
+        to(std::move(to)),
+        input(std::move(input)),
+        cond(std::move(cond)),
+        condition(std::move(condition)),
+        delay(std::move(delay)) {}
+  Transition() = default;
 
-}
+  bool operator==(const Transition &transition) const {
+    return from == transition.from && to == transition.to &&
+           input == transition.input && cond == transition.cond &&
+           delay == transition.delay;
+  }
+  bool operator!=(const Transition &transition) const {
+    return !(*this == transition);
+  }
+  bool operator<(const Transition &other) const {
+    return std::tie(from, to, input, cond, delay) <
+           std::tie(other.from, other.to, other.input, other.cond, other.delay);
+  }
+  friend std::ostream &operator<<(std::ostream &os,
+                                  const Transition &transition) {
+    os << absl::StrFormat(
+        "{%s -> %s on input: <%s> if condition: <%s> after delay: <%s>}\n",
+        transition.from, transition.to, transition.input, transition.cond,
+        transition.delay);
+    if (transition.condition.has_value()) {
+      os << "(has condition function)" << std::endl;
+    } else {
+      os << "(has no condition function)" << std::endl;
+    }
+    return os;
+  }
+};
+struct State {
+  std::string name;
+  std::string action;
+};
+
+class Automat {
+ public:
+  void addState(const std::tuple<std::string, std::string> &result);
+  void addTransition(const ParserLib::TransitionRecord &result);
+  void addVariable(const ParserLib::VariableRecord &result);
+  void addInput(const std::string &name);
+  void addOutput(const std::string &name);
+  std::string Name;
+  std::string Comment;
+  void PrepareHelperVariables();
+  void PrepareIncludes();
+  std::unordered_map<std::string, State> states;
+  std::vector<Transition> transitions;
+  std::vector<std::string> inputs;
+  std::vector<std::string> outputs;
+  std::unordered_map<std::string, std::pair<std::string, std::string>>
+      variables;
+  std::string currentState;
+  bool firstRun = true;
+  std::ostringstream oss;
+
+ private:
+};
+
+}  // namespace AutomatLib

@@ -1,27 +1,28 @@
-#include <chrono>
+#include <absl/log/initialize.h>
+#include <absl/log/log.h>
+#include <absl/strings/str_format.h>
+
 #include <iostream>
-#include <string>
-#include "AutomatLib.h"
-#include "Stopwatch.h"
-#include "absl/log/initialize.h"
-#include "parser.h"
-#include "absl/strings/str_format.h"
-#include "Utils.h"
+
+#include "ParserLib.h"
+#include "absl/flags/flag.h"
 
 
 int main() {
   absl::InitializeLog();
-  Timer timer;
-  timer.tick();
-  const auto test = "IDLE --> ACTIVE: in [ atoi(valueof(\"in\")) == 1 ]";
 
-  const std::string tt = "  ";
-  const auto r1  = Utils::Trim(tt);
-  std::cout << "result: " << r1 << std::endl;
-
-  timer.tock();
-  std::cout << "Run time = " << timer.duration().count() << "ms\n";
-  std::cout << absl::StrFormat("Run time = %dms\n", timer.duration().count());
+  ParserLib::Parser parser;
+  if (auto res = parser.parseState("IDLE : { output(\"out\", 0) }"); res.has_value()) {
+    auto [name, cond] = res.value();
+    std::cout << absl::StrFormat("state %s has condition %s\n", name, cond);
+  }
+  if (auto res = parser.parseVariable("    int timeout = 5000"); res.has_value()) {
+    std::cout << res.value() << std::endl;
+  }
+  if (auto res = parser.parseTransition("    IDLE --> ACTIVE: in [ atoi(valueof(\"in\")) == 1 ]"); res.has_value()) {
+    std::cout << res.value() << std::endl;
+  }
+  return 0;
 
 
 }

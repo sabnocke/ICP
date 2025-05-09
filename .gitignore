@@ -43,3 +43,5 @@ cmake-build-debug/
 build/
 
 libs/
+
+cmake-build-debug-visual-studio/

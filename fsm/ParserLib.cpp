@@ -1,5 +1,6 @@
+#include "ParserLib.h"
+
 #include <absl/log/absl_check.h>
-#include <absl/log/log.h>
 #include <absl/strings/str_format.h>
 #include <absl/strings/str_split.h>
 #include <re2/re2.h>
@@ -8,7 +9,6 @@
 #include <iostream>
 
 #include "AutomatLib.h"
-#include "Parser.h"
 #include "Utils.h"
 #include "range/v3/view/transform.hpp"
 
@@ -35,11 +35,14 @@ Parser::Parser() {
   if (!name_pattern_->ok() || !comment_pattern_->ok() ||
       !variables_pattern_->ok() || !states_pattern_->ok() ||
       !transitions_pattern_->ok()) {
-    LOG(FATAL)
-        << "Failed to compile one or more essential parser regex patterns.";
+    // LOG(FATAL)
+    //     << "Failed to compile one or more essential parser regex patterns.";
+    //TODO replace with something else
   }
 }
+
 AutomatLib::Automat Parser::parseAutomat(const std::string &file) {
+  AutomatLib::Automat automat;
   std::ifstream ifs(file);
   if (!ifs) {
     std::cerr << "Can't open file " << file << std::endl;
@@ -52,16 +55,17 @@ AutomatLib::Automat Parser::parseAutomat(const std::string &file) {
   // string_view is unusable because of lifetime issues
   while (std::getline(ifs, line)) {
     std::cout << line << std::endl;
-    if (line.empty()) continue;
+    if (line.empty())
+      continue;
 
     if (Utils::Contains(line, "Name")) {
       ActualSection = Name;
-      SectionHandler(line);  // In case of: Name: name
+      SectionHandler(line, automat);  // In case of: Name: name
       continue;
     }
     if (Utils::Contains(line, "Comment")) {
       ActualSection = Comment;
-      SectionHandler(line);  // In case of: Comment: comment
+      SectionHandler(line, automat);  // In case of: Comment: comment
       continue;
     }
     if (Utils::Contains(line, "Variable")) {
@@ -78,28 +82,28 @@ AutomatLib::Automat Parser::parseAutomat(const std::string &file) {
     }
     if (Utils::Contains(line, "Input")) {
       ActualSection = Inputs;
-      SectionHandler(line);
+      SectionHandler(line, automat);
       continue;
     }
     if (Utils::Contains(line, "Output")) {
       ActualSection = Outputs;
-      SectionHandler(line);
+      SectionHandler(line, automat);
       continue;
     }
-    SectionHandler(line);
+    SectionHandler(line, automat);
   }
   return std::move(automat);
 }
 
-bool Parser::SectionHandler(const std::string &line) {
+bool Parser::SectionHandler(const std::string &line,
+                            AutomatLib::Automat &automat) const {
   //? return false in each case might be unnecessary as it cannot fall through multiple cases
   switch (ActualSection) {
     case Name:
       if (const auto result = extractName(line); result.has_value()) {
-      automat.Name = result.value();
-      return true;
-    }
-
+        automat.Name = result.value();
+        return true;
+      }
       return false;
     case Comment:
       if (const auto result = extractComment(line); result.has_value()) {
@@ -115,12 +119,11 @@ bool Parser::SectionHandler(const std::string &line) {
       return false;
     }
     case Transitions: {
-
       if (const auto result = parseTransition(line); result.has_value()) {
         automat.addTransition(result.value());
         return true;
       }
-        return false;
+      return false;
     }
     case Variables:
       if (const auto result = parseVariable(line); result.has_value()) {
@@ -148,20 +151,22 @@ std::optional<std::tuple<std::string, std::string>> Parser::parseState(
     const std::string &line) const {
   const auto trimmed = Utils::Trim(line);
   std::string name, code;
-  if (!RE2::FullMatch(trimmed, R"({.*})")) {  // Failsafe in case of brackets
-                                              // being on different lines
-    LOG(WARNING) << absl::StrFormat(
+  const auto res = Utils::FindAll(trimmed, '{', '}');
+  std::cout << std::boolalpha << res << std::endl;
+
+  if (!res) {
+    // Failsafe in case of brackets being on different lines
+    std::cerr << absl::StrFormat(
         "Expected regular expression '{.*}' to find match with '%s'\n",
         trimmed);
     return NOTHING;
   }
   if (!RE2::FullMatch(trimmed, *states_pattern_, &name, &code)) {
+    // LOG(WARNING) << "Didn't find match" << std::endl;
+    //TODO replace with something else
     return NOTHING;
   }
   return std::make_tuple(name, code);
-  // TODO can the code be on multiple lines?
-  // TODO if so, then it cannot be detected via regex this easily, would need
-  // more parsing and accumulation
 }
 
 /// Extracts name from line, expecting format of "Name:<name>" or
@@ -169,17 +174,15 @@ std::optional<std::tuple<std::string, std::string>> Parser::parseState(
 /// The string should be purified prior to calling this function
 /// @param line Line from which name will be extracted
 /// @return String containing name, otherwise nothing
-std::optional<std::string> Parser::extractName(const std::string &line) {
+std::optional<std::string> Parser::extractName(const std::string &line) const {
   std::string name;
-  RE2::Options options;
-  options.set_case_sensitive(false);
 
   if (RE2::FullMatch(line, *name_pattern_, &name) && !name.empty()) {
-    if (auto trimmed = Utils::Trim(name) && !trimmed.empty()) {
+    if (auto trimmed = Utils::Trim(name); !trimmed.empty()) {
       return trimmed;
     }
   }
-  if (auto trimmed = Utils::Trim(line) && !trimmed.empty()) {
+  if (auto trimmed = Utils::Trim(line); !trimmed.empty()) {
     return trimmed;
   }
   return NOTHING;
@@ -252,4 +255,4 @@ std::optional<std::string> Parser::parseSignal(const std::string &line) const {
   return NOTHING;
 }
 
-}  // namespace Parser
+}  // namespace ParserLib

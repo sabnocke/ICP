@@ -1,10 +1,11 @@
 #pragma once
+#include <re2/re2.h>
+
 #include <optional>
 #include <string>
 #include <tuple>
 
 #include "AutomatLib.h"
-#include <re2/re2.h>
 
 namespace AutomatLib {
 class Automat;
@@ -27,10 +28,16 @@ struct TransitionRecord {
   bool operator!=(const TransitionRecord &other) const {
     return !(*this == other);
   }
+
+  friend std::ostream &operator<<(std::ostream &os,
+                                  const TransitionRecord &tr) {
+    os << absl::StrFormat("%s -> %s : on <%s> if <%s> after <%s>", tr.from, tr.to,
+                          tr.input, tr.cond, tr.delay);
+    return os;
+  }
 };
 
 struct VariableRecord {
-
   std::string type;
   std::string name;
   std::string value;
@@ -43,6 +50,11 @@ struct VariableRecord {
   bool operator!=(const VariableRecord &other) const {
     return !(*this == other);
   }
+
+  friend std::ostream &operator<<(std::ostream &os, const VariableRecord &record) {
+    os << absl::StrFormat("%s: %s := %s", record.name, record.type, record.value);
+    return os;
+  }
 };
 
 enum Section { Name, Comment, Variables, States, Transitions, Inputs, Outputs };
@@ -54,18 +66,20 @@ class Parser {
       const std::string &file);  // TODO change it to optional
   [[nodiscard]] std::optional<std::tuple<std::string, std::string>> parseState(
       const std::string &line) const;
-
- private:
   [[nodiscard]] std::optional<VariableRecord> parseVariable(
       const std::string &line) const;
   [[nodiscard]] std::optional<TransitionRecord> parseTransition(
       const std::string &line) const;
-  [[nodiscard]] std::optional<std::string> extractComment(const std::string &line) const;
-  std::optional<std::string> extractName(const std::string &line);
-  [[nodiscard]] std::optional<std::string> parseSignal(const std::string &line) const;
-  bool SectionHandler(const std::string &line);
-  bool SectionHandler(std::string_view line);
-  AutomatLib::Automat automat;
+  [[nodiscard]] std::optional<std::string> extractComment(
+      const std::string &line) const;
+  [[nodiscard]] std::optional<std::string> extractName(
+      const std::string &line) const;
+  [[nodiscard]] std::optional<std::string> parseSignal(
+      const std::string &line) const;
+
+ private:
+  bool SectionHandler(const std::string &line,
+                      AutomatLib::Automat &automat) const;
 
   Section ActualSection = Name;
 
@@ -77,4 +91,4 @@ class Parser {
   std::unique_ptr<RE2> input_pattern_{};
   std::unique_ptr<RE2> output_pattern_{};
 };
-}  // namespace Parser
+}  // namespace ParserLib

@@ -1,12 +1,9 @@
 #pragma once
-#include <concepts>
-#include <functional>
 #include <locale>
 #include <optional>
 #include <string>
 
 #include "absl/strings/str_format.h"
-#include "absl/synchronization/internal/waiter_base.h"
 
 namespace Utils {
 namespace detail {  // Using a detail namespace for traits
@@ -67,7 +64,14 @@ static std::string Remove(const std::string &str, const std::string &substr);
 static std::string ToLower(const std::string &str);
 std::string Trim(const std::string &str);
 std::string_view Trim(std::string_view str);
-bool Contains(const std::string &str, const std::string_view view);
+bool Contains(const std::string &str, std::string_view view);
+std::vector<std::string> Split(const std::string &str, const std::string& delim);
+std::vector<std::string> Split(const std::string &str, char delim);
+std::vector<std::string> TrimEach(std::vector<std::string> &vec);
+template <typename... Args>
+bool FindAll(const std::string_view str, Args... args) {
+  return ((str.find(args) != std::string::npos) && ...);
+}
 
 template <typename T>
 static std::optional<std::string> ToStringOpt(const T &value) {
