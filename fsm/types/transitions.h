@@ -8,7 +8,6 @@
 #include <optional>
 #include <range/v3/all.hpp>
 #include <range/v3/view.hpp>
-#include <rxcpp/rx.hpp>
 #include <string>
 
 #include "../Utils.h"

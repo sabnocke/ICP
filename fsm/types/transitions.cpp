@@ -3,7 +3,6 @@
 //
 
 #include "transitions.h"
-#include "../Timing.h"
 
 namespace types {
 
