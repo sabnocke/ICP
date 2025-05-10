@@ -53,3 +53,6 @@ However, that requires handling communication of inputs/outputs from __FSM__ to 
 - [ZeroMQ](https://zeromq.org)
 
 ---
+- [min value](https://stackoverflow.com/questions/74993409/find-max-min-value-of-a-member-class-in-a-container) - is there something in range-v3?
+- [Timer](https://stackoverflow.com/questions/41152393/c-non-blocking-async-timer)
+> now there is a lesson in trickery...
