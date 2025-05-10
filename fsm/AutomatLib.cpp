@@ -12,7 +12,7 @@
 #include "range/v3/view/map.hpp"
 
 namespace AutomatLib {
-
+//TODO this will be done differently
 void Automat::addTransition(const Transition &result) {
   transitions << result;
 }
