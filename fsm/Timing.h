@@ -1,6 +1,8 @@
-//
-// Created by ReWyn on 09.05.2025.
-//
+///
+///! This is just broken (at least the rxcpp) if used on ucrt
+///TODO change this to only start one timer, the one with smallest duration
+///? In case of conflict pick at random or dunno
+///
 
 #pragma once
 
@@ -31,9 +33,10 @@ struct Timer {
 
 private:
   std::vector<TimerConfig> configs;
+  std::vector<TimerConfig> results;
 
 public:
-  void RegisterTimer(const int id, Transition transition,
+  void RegisterTimer(const int id, const Transition& transition,
                      const std::chrono::milliseconds duration) {
     configs.emplace_back(id, transition, duration);
   }
