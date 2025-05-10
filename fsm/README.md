@@ -10,24 +10,32 @@
     ./vcpkg.exe install rxcpp
     ./vcpkg.exe install lua
 ```
+> That should be all, if it doesn't work I will get angry.
+> 
+> vcpkg installs packages based on operating system, which can be problem for windows (*MSVC* vs *MINGW*)
+> 
+> In the future, I should make a script for that.
 
-- That should be all, if it doesn't work I will get angry.
-- In the future, I should make script for that
-- CMake is the run with
+> Building and compiling of the project is done via presets `CMakePresets.json`.
+> The only working preset is for windows, as of now.
+> 
+> `cmake --preset windows-ucrt-debug` then
+> 
+> `cmake --build --preset build-windows-ucrt-debug`.
+> 
+> This, if all goes well, creates compiled project in directory `./build/windows-ucrt-debug`.
 
-```shell
-    mkdir build && cd build
-    cmake -DCMAKE_TOOLCHAIN_FILE=/path/to/vcpkg/buildsystem -G something --target fsm
-```
+> Linux should be done similarly (albeit there is no preset for it), since ucrt is almost linux.
+> 
+> So, TODO, I guess.
 
 > the CMAKE_TOOLCHAIN_FILE is important
 > the path should look something like:
 >  `/libs/vcpkg/scripts/buildsystems/vcpkg.cmake`
+> 
+> It is currently set by `CMakeLists.txt`, but in future might be set by preset.
 
-> It is important to set CMAKE_TOOLCHAIN_FILE correctly otherwise vcpkg won't work
-> It is recommended to use CMAKE_SOURCE_DIR
-
-> Using correct target (fsm) is necessary for correct linking of packages
+> Using correct target (fsm) is handled by preset.
 
 ---
 
@@ -45,9 +53,3 @@ However, that requires handling communication of inputs/outputs from __FSM__ to 
 - [ZeroMQ](https://zeromq.org)
 
 ---
-
-> messages/p2p.{h,cpp} contains example of ipc using mq (specifically zeromq/cppmq)
-
----
-
-# Syntax
