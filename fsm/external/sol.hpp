@@ -34,7 +34,8 @@
 
 // beginning of sol/version.hpp
 
-#include <sol/config.hpp>
+// #include <sol/config.hpp>
+#include "config.hpp"
 
 #define SOL_VERSION_MAJOR 3
 #define SOL_VERSION_MINOR 5
@@ -9668,7 +9669,8 @@ namespace sol {
 
 // beginning of sol/error_handler.hpp
 
-#include <sol/config.hpp>
+// #include <sol/config.hpp>
+#include "config.hpp"
 
 #include <cstdio>
 
