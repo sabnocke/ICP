@@ -4,7 +4,7 @@
 
 #include "Interpret.h"
 
-#include <sol/sol.hpp>
+#include "external/sol.hpp"
 
 #include "absl/log/absl_check.h"
 
@@ -38,9 +38,14 @@ void Interpret::Execute(bool once = false) {
     // Find all transitions that have condition, but no input
     if (auto r = transitions.WhereCond().WhereNoTimer(); r.Some()) {
       // arm timers for all transitions
+      // timer.SetTimers(r);
     }
     // wait for timers (can do) or input event (can't do)
     // run timers
+    // auto result = timer.Start();
+    // if (result.has_value()) {
+    //   // move there?
+    // }
   }
 }
 
