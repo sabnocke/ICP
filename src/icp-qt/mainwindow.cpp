@@ -4,14 +4,16 @@
 #include "GraphicsScene.h"
 #include "AutomatModel.h"
 
-//#include "parser.h"
+//#include "ParserLib.h"
 //#include "AutomatLib.h"
+//#include "messages/p2p.h"
 
-#include <QGraphicsDropShadowEffect>
-#include <QFrame>
 #include <QInputDialog>
 #include <QFileDialog>
 #include <QMessageBox>
+#include <QProcess>
+#include <QDir>
+#include <QDebug>
 
 // Constructor: Initializes the main window, sets up the scene, connects UI signals, and defaults to AddState mode
 MainWindow::MainWindow(QWidget *parent)
@@ -64,6 +66,8 @@ void MainWindow::setupConnections() {
 
   connect(ui->actionExport, &QAction::triggered, this, &MainWindow::onExportClicked);
   connect(ui->actionImport, &QAction::triggered, this, &MainWindow::onImportClicked);
+
+  connect(ui->startButton, &QPushButton::clicked, this, &MainWindow::onStartClicked);
 
 }
 
@@ -207,5 +211,54 @@ void MainWindow::onImportClicked() {
   QString filePath = QFileDialog::getOpenFileName(this, "Import FSM", "", "FSM files (*.txt);;All files (*.*)");
   if (filePath.isEmpty()) return;
 
-  // TODO: Use Parser::parser::parseAutomat() to parse
+  // TODO: Use Parser::parseAutomat() to parse
+}
+
+void MainWindow::onStartClicked() {
+  // Gather current info from GUI into AutomatModel
+  AutomatModel model;
+  model.gatherInfo(this);
+
+  // Export model to a temporary file
+  const QString tempFilePath = QDir::temp().filePath("fsm_runtime_definition.txt");
+  if (!model.exportInfo(tempFilePath)) {
+    QMessageBox::critical(this, "Export Error", "Failed to export automat to file.");
+    return;
+  }
+
+  // Start the FSM process with the exported file as argument
+  QProcess* fsmProcess = new QProcess(this);
+  fsmProcess->start("fsmExecutable", QStringList() << tempFilePath);
+  if (!fsmProcess->waitForStarted()) {
+    QMessageBox::critical(this, "Error", "Failed to start FSM process.");
+    return;
+  }
+
+  /*
+  // TODO:
+  // Set up ZeroMQ communication from GUI side (connect)
+
+  static zmq::context_t context;
+  communicator = std::make_unique<PairCommunicator>(
+      &context,
+      "ipc://pair.ipc",  // endpoint
+      false,             // GUI is the client (connects)
+      [this](std::string_view msg) {
+        QString message = QString::fromStdString(std::string(msg));
+        qDebug() << "[FSM MSG]" << message;
+
+        if (message.startsWith("STATE:")) {
+          QString state = message.mid(6).trimmed();
+          updateCurrentStateInGUI(state);
+        } else if (message.startsWith("OUTPUT:")) {
+          QString output = message.mid(7).trimmed();
+          appendToOutputLog(output);
+        } else if (message.startsWith("LOG:")) {
+          QString logEntry = message.mid(4).trimmed();
+          appendToLogView(logEntry);
+        } else {
+          qWarning() << "[Unknown FSM message]" << message;
+        }
+      });
+  */
 }

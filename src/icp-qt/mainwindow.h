@@ -43,6 +43,8 @@ private slots:
   void onExportClicked(); // For handling export menu action click (generate text file)
   void onImportClicked(); // For handling import menu action click (import text file and populate gui components)
 
+  void onStartClicked(); // For handling start button click
+
 private:
   Ui::MainWindow *ui;             // UI definition from Designer
   GraphicsScene* scene;           // Scene handling the FSM editor canvas
