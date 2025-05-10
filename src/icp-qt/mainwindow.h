@@ -29,6 +29,7 @@ private slots:
   void onAddStateClicked();       // For handling AddState button
   void onAddTransitionClicked();  // For handling AddTransition button
   void onMoveModeClicked();       // For handling Move button
+  void onDeleteModeClicked();     // For handling Delete button
 
   void onAddVariableClicked();    // For handling AddVariable button
   void onRemoveVariableClicked(); // For handling RemoveVariable button
@@ -41,6 +42,7 @@ private slots:
 
   void onStateAddedToTable(const QString& stateName);      // Updates action table when a state is added
   void onStateRenamedInTable(const QString& oldName, const QString& newName); // Updates action table when a state is renamed
+  void onStateDeleted(const QString& stateName); // Updates action table when a state is deleted
 
   void onExportClicked(); // For handling export menu action click (generate text file)
   void onImportClicked(); // For handling import menu action click (import text file and populate gui components)

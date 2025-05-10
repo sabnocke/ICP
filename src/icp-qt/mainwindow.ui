@@ -259,7 +259,7 @@
      <string>Comment</string>
     </property>
    </widget>
-   <widget class="QPushButton" name="moveButton_2">
+   <widget class="QPushButton" name="deleteButton">
     <property name="geometry">
      <rect>
       <x>1290</x>

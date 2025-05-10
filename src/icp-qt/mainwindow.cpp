@@ -78,6 +78,7 @@ void MainWindow::setupConnections() {
   connect(ui->addStateButton, &QPushButton::clicked, this, &MainWindow::onAddStateClicked);
   connect(ui->addTransitionButton, &QPushButton::clicked, this, &MainWindow::onAddTransitionClicked);
   connect(ui->moveButton, &QPushButton::clicked, this, &MainWindow::onMoveModeClicked);
+  connect(ui->deleteButton, &QPushButton::clicked, this, &MainWindow::onDeleteModeClicked);
 
   connect(ui->addVariableButton, &QPushButton::clicked, this, &MainWindow::onAddVariableClicked);
   connect(ui->removeVariableButton, &QPushButton::clicked, this, &MainWindow::onRemoveVariableClicked);
@@ -90,6 +91,7 @@ void MainWindow::setupConnections() {
 
   connect(scene, &GraphicsScene::stateAdded, this, &MainWindow::onStateAddedToTable);
   connect(scene, &GraphicsScene::stateRenamed, this, &MainWindow::onStateRenamedInTable);
+  connect(scene, &GraphicsScene::stateDeleted, this, &MainWindow::onStateDeleted);
 
   connect(ui->actionExport, &QAction::triggered, this, &MainWindow::onExportClicked);
   connect(ui->actionImport, &QAction::triggered, this, &MainWindow::onImportClicked);
@@ -119,12 +121,20 @@ void MainWindow::onMoveModeClicked() {
   updateModeUI(currentMode);
 }
 
+// Switches scene mode to Delete
+void MainWindow::onDeleteModeClicked() {
+  currentMode = EditorMode::Delete;
+  scene->setMode(currentMode);
+  updateModeUI(currentMode);
+}
+
 // Highlights the currently active mode button by setting its style
 void MainWindow::updateModeUI(EditorMode mode) {
   // Clear all styles first
   ui->addStateButton->setStyleSheet("");
   ui->addTransitionButton->setStyleSheet("");
   ui->moveButton->setStyleSheet("");
+  ui->deleteButton->setStyleSheet("");
 
   // Apply blue style to the active one
   switch (mode) {
@@ -136,6 +146,9 @@ void MainWindow::updateModeUI(EditorMode mode) {
       break;
     case EditorMode::Move:
       ui->moveButton->setStyleSheet("background-color: #2196f3");
+      break;
+    case EditorMode::Delete:
+      ui->deleteButton->setStyleSheet("background-color: #2196f3");
       break;
     default:
       break;
@@ -207,6 +220,18 @@ void MainWindow::onStateAddedToTable(const QString& stateName) {
   ui->stateActionsTable->setItem(row, 1, actionItem);
 }
 
+// Removes the corresponding row from the state actions table
+// when a state is deleted from the scene
+void MainWindow::onStateDeleted(const QString& stateName) {
+  for (int row = 0; row < ui->stateActionsTable->rowCount(); ++row) {
+    QTableWidgetItem* item = ui->stateActionsTable->item(row, 0); // 1st column = state name
+    if (item && item->text() == stateName) {
+      ui->stateActionsTable->removeRow(row);
+      break;
+    }
+  }
+}
+
 // Updates the state name in the actions table when a state is renamed in the scene
 void MainWindow::onStateRenamedInTable(const QString& oldName, const QString& newName) {
   for (int i = 0; i < ui->stateActionsTable->rowCount(); ++i) {
@@ -252,6 +277,8 @@ void MainWindow::onStartClicked() {
     QMessageBox::critical(this, "Export Error", "Failed to export automat to file.");
     return;
   }
+
+  // Send to parser for verification
 
   appendToTerminal("Starting fake FSM...");
   simulateFakeFSM();

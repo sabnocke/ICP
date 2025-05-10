@@ -26,6 +26,8 @@ public:
   bool isInitialState() const;      // Check if this state is marked as initial
   const QSet<TransitionItem*>& getAttachedTransitions() const;  // Return all connected transitions to this state
 
+  void removeTransition(TransitionItem* t); // Removes the given transition from the state internal list
+
 protected:
   QVariant itemChange(GraphicsItemChange change, const QVariant& value) override; // Notify transitions on move
   void contextMenuEvent(QGraphicsSceneContextMenuEvent* event) override;          // Handle right-click menu for "initial state" marking

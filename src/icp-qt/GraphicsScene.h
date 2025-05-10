@@ -50,9 +50,14 @@ private:
   // Enables or disables state movability based on the current mode
   void updateStateMovability();
 
+  // Deletes clicked item (state with attached transitions or just transition)
+  void handleDeleteClick(const QPointF& pos);
+
 signals:
   // Emitted when a new state is added (used to update action table)
   void stateAdded(const QString& name);
+  // Emitted when state is deleted (used to update action table)
+  void stateDeleted(const QString& stateName);
   // Emitted when a state is renamed (used to rename row in action table)
   void stateRenamed(const QString& oldName, const QString& newName);
 };

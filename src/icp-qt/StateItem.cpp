@@ -173,3 +173,8 @@ void StateItem::contextMenuEvent(QGraphicsSceneContextMenuEvent* event) {
 const QSet<TransitionItem*>& StateItem::getAttachedTransitions() const {
   return attachedTransitions;
 }
+
+// Removes a specific transition from the set of attached transitions
+void StateItem::removeTransition(TransitionItem* t) {
+  attachedTransitions.remove(t);
+}

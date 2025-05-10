@@ -17,17 +17,23 @@ void GraphicsScene::setMode(EditorMode mode) {
 }
 
 // Main mouse event handler
-// Depending on current mode, creates new state or starts/completes a transition
+// Depending on current mode, creates new state or starts/completes a transition or deletes them
 void GraphicsScene::mousePressEvent(QGraphicsSceneMouseEvent* event) {
   switch (currentMode) {
-    case EditorMode::AddState:
+    case EditorMode::AddState: {
       createStateAt(event->scenePos());
       break;
+    }
 
     case EditorMode::AddTransition: {
       auto* item = itemAt(event->scenePos(), QTransform());
       auto* state = qgraphicsitem_cast<StateItem*>(item);
       if (state) handleTransitionClick(state);
+      break;
+    }
+
+    case EditorMode::Delete: {
+      handleDeleteClick(event->scenePos());
       break;
     }
 
@@ -155,4 +161,42 @@ StateItem* GraphicsScene::findStateByName(const QString& name) {
     }
   }
   return nullptr;
+}
+
+// Handles deletion of a state or transition based on click position
+void GraphicsScene::handleDeleteClick(const QPointF& pos) {
+  QGraphicsItem* item = itemAt(pos, QTransform());
+
+  // If its a transition, remove it directly
+  if (auto* transition = dynamic_cast<TransitionItem*>(item)) {
+    // Detach from states
+    if (auto* from = transition->getFromState())
+      from->removeTransition(transition);
+    if (auto* to = transition->getToState())
+      to->removeTransition(transition);
+
+    removeItem(transition);
+    delete transition;
+    return;
+  }
+
+  // If its a state, remove it and all attached transitions also
+  if (auto* state = dynamic_cast<StateItem*>(item)) {
+    QSet<TransitionItem*> transitions = state->getAttachedTransitions();
+    for (TransitionItem* t : transitions) {
+      if (auto* from = t->getFromState())
+        from->removeTransition(t);
+      if (auto* to = t->getToState())
+        to->removeTransition(t);
+
+      removeItem(t);
+      delete t;
+    }
+
+    // Notify MainWindow to remove action row
+    emit stateDeleted(state->getName());
+    removeItem(state);
+    delete state;
+    return;
+  }
 }

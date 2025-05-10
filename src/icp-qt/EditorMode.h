@@ -6,7 +6,8 @@
 enum class EditorMode {
   AddState,      // Clicking on the canvas creates a new state
   AddTransition, // Clicking two states in sequence creates a transition
-  Move           // States can be moved by dragging
+  Move,          // States can be moved by dragging
+  Delete         // Clicking on state or transition will delete it
 };
 
 #endif // EDITORMODE_H
