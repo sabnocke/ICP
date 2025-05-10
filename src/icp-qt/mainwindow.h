@@ -24,6 +24,8 @@ public:
   GraphicsScene* getScene() const { return scene; }
 
 private slots:
+  void on_actionShowHelp_triggered(); // Display help
+
   void onAddStateClicked();       // For handling AddState button
   void onAddTransitionClicked();  // For handling AddTransition button
   void onMoveModeClicked();       // For handling Move button
@@ -45,6 +47,8 @@ private slots:
 
   void onStartClicked(); // For handling start button click
 
+  void simulateFakeFSM(); // WILL BE REMOVED
+
 private:
   Ui::MainWindow *ui;             // UI definition from Designer
   GraphicsScene* scene;           // Scene handling the FSM editor canvas
@@ -52,6 +56,9 @@ private:
   void setupConnections();       // Connect buttons to slots
   void setupScene();             // Set up the scene and view
   void updateModeUI(EditorMode); // Visually indicate the current mode
+
+  void updateCurrentState(const QString& stateName);  // Highlight current FSM state
+  void appendToTerminal(const QString& line);         // Add log/output line to terminal
 
   EditorMode currentMode = EditorMode::Move; // Default to Move mode
 };

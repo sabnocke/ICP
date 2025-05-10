@@ -54,6 +54,15 @@ void StateItem::setSelectedVisual(bool selected) {
   setPen(QPen(selected ? customBlue : Qt::black, 3));
 }
 
+// Highlights the state as currently active (used during runtime)
+void StateItem::setHighlighted(bool highlight) {
+  if (highlight) {
+    setBrush(QColor("#ffc107"));
+  } else {
+    setBrush(Qt::white);
+  }
+}
+
 // Add a transition to the list of attached transitions
 void StateItem::addTransition(TransitionItem* t) {
   attachedTransitions.insert(t);

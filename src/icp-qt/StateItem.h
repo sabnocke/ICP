@@ -19,6 +19,7 @@ public:
   void setSelectedVisual(bool selected); // Visually highlight/unhighlight
   void addTransition(TransitionItem* t); // Store transition references
   void setMovable(bool movable);         // Enable/disable dragging
+  void setHighlighted(bool highlight);   // Highlight current active state
 
   void startNameEditing();          // Start "inplace" editing of the state name
   void setInitial(bool isInitial);  // Mark/unmark this state as initial state

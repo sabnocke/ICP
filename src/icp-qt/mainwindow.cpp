@@ -15,6 +15,8 @@
 #include <QDir>
 #include <QDebug>
 
+#include <QTimer>
+
 // Constructor: Initializes the main window, sets up the scene, connects UI signals, and defaults to AddState mode
 MainWindow::MainWindow(QWidget *parent)
     : QMainWindow(parent), ui(new Ui::MainWindow), scene(new GraphicsScene(this)) {
@@ -33,6 +35,31 @@ MainWindow::MainWindow(QWidget *parent)
 // Destructor: Cleans up the UI resources
 MainWindow::~MainWindow() {
   delete ui;
+}
+
+// Help message
+void MainWindow::on_actionShowHelp_triggered() {
+  QString helpText = R"(
+<b>Finite State Machine Editor</b><br><br>
+
+<b>Edit Modes:</b><br>
+- <b> + :</b> Add states - Click on the canvas to create a new state.<br>
+- <b> -> :</b> Add transitions - Click on two states to create a transition between them.<br>
+- <b> Move :</b> Drag states around canvas, double-click on state to rename it,
+  double click on transition label to change it or right-click on state to mark it as initial.<br>
+- <b> X :</b> Click on state or transition to remove it.<br><br>
+
+<b>Inputs, Outputs, Variables:</b><br>
+- Fill them in on left.<br><br>
+
+<b>Actions:</b><br>
+- For each state, define actions in the action table below canvas.<br><br>
+
+<b>File->Export:</b> Save FSM to a file.<br>
+<b>File->Import:</b> Load FSM from a file.<br><br>
+)";
+
+  QMessageBox::information(this, "Help", helpText);
 }
 
 // Provides access to the UI object for external components (AutomatModel)
@@ -226,6 +253,10 @@ void MainWindow::onStartClicked() {
     return;
   }
 
+  appendToTerminal("Starting fake FSM...");
+  simulateFakeFSM();
+
+  /*
   // Start the FSM process with the exported file as argument
   QProcess* fsmProcess = new QProcess(this);
   fsmProcess->start("fsmExecutable", QStringList() << tempFilePath);
@@ -234,7 +265,7 @@ void MainWindow::onStartClicked() {
     return;
   }
 
-  /*
+
   // TODO:
   // Set up ZeroMQ communication from GUI side (connect)
 
@@ -248,17 +279,58 @@ void MainWindow::onStartClicked() {
         qDebug() << "[FSM MSG]" << message;
 
         if (message.startsWith("STATE:")) {
-          QString state = message.mid(6).trimmed();
-          updateCurrentStateInGUI(state);
-        } else if (message.startsWith("OUTPUT:")) {
-          QString output = message.mid(7).trimmed();
-          appendToOutputLog(output);
-        } else if (message.startsWith("LOG:")) {
-          QString logEntry = message.mid(4).trimmed();
-          appendToLogView(logEntry);
+          QString state = message.mid(QString("STATE:").length()).trimmed();
+          updateCurrentState(state);
         } else {
-          qWarning() << "[Unknown FSM message]" << message;
+          appendToTerminal(message);
         }
       });
   */
+}
+
+// Appends a line to the output terminal
+// Used to display log messages or outputs from the running FSM
+void MainWindow::appendToTerminal(const QString& line) {
+  ui->outputTerminal->appendPlainText(line);
+}
+
+// Highlights the state in the scene whose name matches stateName
+// Called when the FSM sends a "STATE:" message via ZeroMQ
+void MainWindow::updateCurrentState(const QString& stateName) {
+  // Loop over all items in the scene to find states
+  for (QGraphicsItem* item : scene->items()) {
+    if (auto* state = qgraphicsitem_cast<StateItem*>(item)) {
+      bool isCurrent = (state->getName() == stateName);
+      state->setHighlighted(isCurrent);
+    }
+  }
+}
+
+// WILL BE REMOVED
+void MainWindow::simulateFakeFSM() {
+  QStringList messages = {
+      "LOG: FSM started.",
+      "STATE: IDLE",
+      "OUTPUT: out = 0",
+      "LOG: Waiting for input...",
+      "STATE: ACTIVE",
+      "OUTPUT: out = 1",
+      "LOG: Transitioned to ACTIVE.",
+      "STATE: TIMING",
+      "LOG: Timer started.",
+      "STATE: IDLE",
+      "LOG: Back to IDLE."
+  };
+
+  int delay = 800;
+  for (int i = 0; i < messages.size(); ++i) {
+    QTimer::singleShot(i * delay, this, [this, msg = messages[i]] {
+      if (msg.startsWith("STATE:")) {
+        QString state = msg.mid(QString("STATE:").length()).trimmed();
+        updateCurrentState(state);
+      } else {
+        appendToTerminal(msg);
+      }
+    });
+  }
 }
