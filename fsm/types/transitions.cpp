@@ -3,18 +3,9 @@
 //
 
 #include "transitions.h"
+#include "../Timing.h"
 
 namespace types {
-
-void TransitionGroup::Add(const std::string& from, const std::string& to,
-                          const std::string& input,
-                          const std::optional<std::function<bool()>>& condition,
-                          const std::string& delay) {
-  if (condition.has_value()) {
-    _transitions.insert({from, to, input, {}, condition.value(), delay});
-    Count++;
-  }
-}
 
 size_t TransitionGroup::CostAtMost(const int cost) {
   size_t total = 0;

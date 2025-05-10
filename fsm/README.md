@@ -7,6 +7,8 @@
     ./vcpkg.exe integrate install
     ./vcpkg.exe install abseil
     ./vcpkg.exe install re2
+    ./vcpkg.exe install rxcpp
+    ./vcpkg.exe install lua
 ```
 
 - That should be all, if it doesn't work I will get angry.
@@ -22,10 +24,8 @@
 > the path should look something like:
 >  `/libs/vcpkg/scripts/buildsystems/vcpkg.cmake`
 
-> It is important to set CMAKE_TOOLCHAIN_FILE correctly otherwise vcpkg won't
-
-> -G should also be correctly set, vcpkg by default downloads packages for current os, 
-> this can cause issues if cmake is run from wsl, mingw or anywhere os mismatch can happen (linux vs win)
+> It is important to set CMAKE_TOOLCHAIN_FILE correctly otherwise vcpkg won't work
+> It is recommended to use CMAKE_SOURCE_DIR
 
 > Using correct target (fsm) is necessary for correct linking of packages
 
@@ -47,3 +47,7 @@ However, that requires handling communication of inputs/outputs from __FSM__ to 
 ---
 
 > messages/p2p.{h,cpp} contains example of ipc using mq (specifically zeromq/cppmq)
+
+---
+
+# Syntax

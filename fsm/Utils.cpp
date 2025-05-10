@@ -1,14 +1,14 @@
 #include "Utils.h"
 
+#include <fast_float/fast_float.h>
+
+#include <iomanip>
 #include <locale>
+#include <range/v3/all.hpp>
+#include <sstream>
 
 #include "absl/strings/ascii.h"
 #include "absl/strings/match.h"
-#include "range/v3/algorithm/find_if.hpp"
-#include "range/v3/range/conversion.hpp"
-#include "range/v3/view.hpp"
-#include <iomanip>
-#include <sstream>
 
 namespace Utils {
 
@@ -71,11 +71,16 @@ std::string ToLower(const std::string &str) {
 std::string ToLower(const std::string_view str) {
   return ToLower(std::string(str));
 }
+char ToLower(const char c) { return absl::ascii_tolower(c); }
 
 bool Contains(const std::string &str, const std::string_view view) {
   const auto lower = ToLower(str);
   const auto lower_s = ToLower(view);
   return absl::StrContains(lower, lower_s);
+}
+
+bool Contains(const std::string &str, const char c) {
+  return absl::StrContains(ToLower(str), ToLower(c));
 }
 
 std::vector<std::string> Split(const std::string &str, const char delim) {
@@ -95,5 +100,29 @@ std::string Quote(const std::string &str) {
   return ss.str();
 }
 
+std::optional<long long> AttemptIntegerConversion(const std::string &input) {
+  const auto first = input.data();
+  const auto last = input.data() + input.size();
+  long long value;
+
+  if (auto [ptr, ec] = fast_float::from_chars(first, last, value);
+      ec != std::errc() || ptr != last) {
+    return std::nullopt;
+  }
+
+  return value;
+}
+std::optional<double> AttemptDoubleConversion(const std::string &input) {
+  const auto first = input.data();
+  const auto last = input.data() + input.size();
+  double value;
+
+  if (auto [ptr, ec] = fast_float::from_chars(first, last, value);
+      ec != std::errc{} || ptr != last) {
+    return std::nullopt;
+  }
+
+  return value;
+}
 
 }  // namespace Utils

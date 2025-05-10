@@ -5,6 +5,7 @@
 #include <string>
 #include <utility>
 #include <vector>
+#include <fstream>
 
 #include "ParserLib.h"
 #include "Utils.h"
@@ -12,18 +13,8 @@
 
 namespace AutomatLib {
 
-
-
-void Automat::addState(const std::tuple<std::string, std::string> &result) {
-  states += State{std::get<0>(result), std::get<1>(result)};
-}
-
 void Automat::addTransition(const Transition &result) {
   transitions << result;
-}
-
-void Automat::addVariable(const Variable &result) {
-  variables += result;
 }
 
 void Automat::addInput(const std::string &name) { inputs.push_back(name); }
@@ -64,9 +55,6 @@ void Automat::PrepareHelperVariables() {
   for (const auto &sig : outputs) {
     oss << absl::StrFormat("OUTPUT(\"%s\");", sig);
   }
-  for (const auto &def : variables.Format()) {
-    oss << def << std::endl;
-  }
   for (const auto& [name, action] : states.GetPairs()) {
     oss << absl::StrFormat("function %s = [](){", name);
     oss << std::quoted(action);
@@ -85,5 +73,16 @@ void Automat::PrepareExecuteFunction() {
 
   oss << "}" << std::endl;
 }
+
+void Automat::Create() {
+  const auto fileName = absl::StrFormat("autogen.%s.cpp", Name);
+  std::ofstream file(fileName, std::ios::in);
+  PrepareIncludes();
+  PrepareHelperVariables();
+  PrepareExecuteFunction();
+  file << oss.str();
+  file.close();
+}
+
 
 }  // namespace AutomatLib

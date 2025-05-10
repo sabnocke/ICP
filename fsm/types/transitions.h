@@ -8,8 +8,8 @@
 #include <optional>
 #include <range/v3/all.hpp>
 #include <range/v3/view.hpp>
-#include <string>
 #include <rxcpp/rx.hpp>
+#include <string>
 
 #include "../Utils.h"
 
@@ -22,22 +22,29 @@ struct Transition {
   std::string to;
   std::string input;
   std::string cond;
-  std::optional<std::function<bool()>> condition;
+  // std::optional<std::function<bool()>> condition = std::nullopt;
   std::string delay;
+  int delayInt = 0;
+  // std::optional<std::function<void()>> action = std::nullopt;
 
-  Transition(std::string from, std::string to, std::string input,
-             std::string cond, std::optional<std::function<bool()>> condition,
-             std::string delay)
-      : from(std::move(from)),
-        to(std::move(to)),
-        input(std::move(input)),
-        cond(std::move(cond)),
-        condition(std::move(condition)),
-        delay(std::move(delay)) {}
+  Transition(std::string _from, std::string _to, std::string _input,
+             std::string _cond, std::string _delay)
+      : from(std::move(_from)),
+        to(std::move(_to)),
+        input(std::move(_input)),
+        cond(std::move(_cond)),
+        delay(std::move(_delay)) {}
+
+  Transition(std::string _from, std::string _to, std::string _input, int _delay)
+      : from(std::move(_from)),
+        to(std::move(_to)),
+        input(std::move(_input)),
+        delayInt(_delay) {}
+
   Transition() = default;
 
   std::tuple<std::string, std::string, std::string, std::string, std::string>
-  Tuple() {
+  Tuple() const {
     return std::make_tuple(from, to, input, cond, delay);
   }
 
@@ -56,27 +63,31 @@ struct Transition {
   friend std::ostream& operator<<(std::ostream& os,
                                   const Transition& transition) {
     os << absl::StrFormat(
-        "{%s -> %s on input: <%s> if condition: <%s> after delay: <%s>}\n",
+        "{%s -> %s on input: <%s> if condition: <%s> after delay: <%s>} ",
         transition.from, transition.to, transition.input, transition.cond,
         transition.delay);
-    if (transition.condition.has_value()) {
-      os << "(has condition function)" << std::endl;
+    if (!transition.cond.empty()) {
+      os << "(has condition function)";
     } else {
-      os << "(has no condition function)" << std::endl;
+      os << "(has no condition function)";
     }
     return os;
   }
 };
 
+//TODO do I need to remember order?
 struct TransitionGroup {
  private:
   absl::btree_set<Transition> _transitions;
+  std::list<Transition> _tr;
+  std::vector<Transition> _tr2;
   TGT _transition_groups;
 
  public:
   TransitionGroup() = default;
   TransitionGroup operator+=(const Transition& tr) {
     _transitions.insert(tr);
+
     return *this;
   }
   TransitionGroup& operator<<(const Transition& tr) {
@@ -99,8 +110,9 @@ struct TransitionGroup {
   void Add(const Transition& transition) { _transitions.insert(transition); }
   void Add(const std::string& from, const std::string& to,
            const std::string& input,
-           const std::optional<std::function<bool()>>& condition,
-           const std::string& delay);
+           int delay) {
+    _transitions.insert({from, to, input, delay});
+  }
   TransitionGroup Cost(int cost) {
     auto it = _transitions |
               ranges::views::filter([cost](const Transition& transition) {
@@ -110,14 +122,16 @@ struct TransitionGroup {
   }
   size_t CostAtMost(int cost);
   static int GetCost(const Transition& transition) {
-    auto [from, to, input, cond, condition, delay] = transition;
+    auto [from, to, input, cond, delay] = transition.Tuple();
     const int total = (!cond.empty() ? 1 : 0) +   // Add 1 if cond is not empty
                       (!delay.empty() ? 2 : 0) +  // Add 2 if delay is not empty
                       (!input.empty() ? 4 : 0);   // Add 4 if input is not empty
-
     return total;
   }
   TGT GroupTransitions();
+  [[nodiscard]] absl::btree_set<Transition> Get() const {
+    return _transitions;
+  };
   TransitionGroup Retrieve(const std::string& input);
   [[nodiscard]] TransitionGroup Select(
       const std::function<Transition(Transition)>& pred) const {
@@ -130,15 +144,29 @@ struct TransitionGroup {
     return TransitionGroup(it | ranges::to<decltype(_transitions)>);
   }
   [[nodiscard]] TransitionGroup WhereNoEvent() const {
-    return Where([](const auto& tr) { return tr.input == ""; });
+    return Where([](const auto& tr) { return tr.input.empty(); });
   }
   [[nodiscard]] TransitionGroup WhereTimer() const {
-    return Where([](const auto& tr) { return tr.delay != ""; });
+    return Where([](const auto& tr) { return !tr.delay.empty(); });
+  }
+  [[nodiscard]] TransitionGroup WhereNoTimer() const {
+    return Where([](const auto& tr) { return tr.delay.empty(); });
   }
   [[nodiscard]] TransitionGroup WhereCond() const {
-    return Where([](const auto& tr) {
-      return tr.condition.has_value() && tr.condition.value()();
-    });
+    return Where([](const auto& tr) { return !tr.cond.empty(); });
+  }
+  [[nodiscard]] TransitionGroup WhereCondTimer() const {
+    return WhereCond().WhereTimer();
+  }
+  [[nodiscard]] TransitionGroup WhereNone() const {
+    return Where([](const auto& tr) { return tr.cond.empty() && tr.delay.empty() && tr.input.empty(); });
+  }
+  bool Contains(const Transition& tr) {
+    auto f =
+        _transitions | ranges::views::filter([&tr](const auto& transition) {
+          return transition == tr;
+        });
+    return ranges::distance(f) == 1;
   }
   absl::btree_set<std::string> ExternalAdd(
       const std::string_view externalName) {
@@ -149,10 +177,31 @@ struct TransitionGroup {
     return ext;
   }
 
+  /// Attempts to retrieve "first" value from group
+  ///
+  /// First according to ordering of internal set
+  ///
+  /// Which begs for a question, do I need to remember order?
+  /// @return Reference to "first" item in the group
+  [[nodiscard]] std::optional<std::reference_wrapper<const Transition>> First()
+      const {
+    if (_transitions.empty()) {
+      return std::nullopt;
+    }
+    return std::cref(*_transitions.begin());
+  }
+
+  friend std::ostream& operator<<(std::ostream &os, const TransitionGroup &tg) {
+    for (const auto& tr : tg.Get()) {
+      os << tr << std::endl;
+    }
+    return os;
+  }
+
  private:
   static std::string Format(const std::string_view name,
                             const Transition& transition) {
-    auto [from, to, input, cond, condition, delay] = transition;
+    auto [from, to, input, cond, delay] = transition.Tuple();
     return absl::StrFormat("%s.Add(%s, %s, %s, [](){ %s; }, %s);", name, from,
                            to, input, Utils::Quote(cond), delay);
   }

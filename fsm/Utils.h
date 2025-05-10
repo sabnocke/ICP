@@ -2,10 +2,13 @@
 #include <locale>
 #include <optional>
 #include <string>
+#include <fast_float/fast_float.h>
 
 #include "absl/strings/str_format.h"
+#include "types/numeric.h"
 
 namespace Utils {
+using namespace types;
 namespace detail {  // Using a detail namespace for traits
 
 // Trait to check if T is std::string or const std::string& etc.
@@ -53,6 +56,20 @@ template <typename T>
 inline constexpr bool is_streamable_v = is_streamable_impl<T>::value;
 
 }  // namespace detail
+namespace internal {
+template <typename T>
+std::optional<T> AttemptConversion(const std::string_view str) {
+  const auto first = str.data();
+  const auto last = str.data() + str.size();
+  T value{};
+
+  if (auto [ptr, ec] = fast_float::from_chars(first, last, value);
+      ec != std::errc() || ptr != last) {
+    return std::nullopt;
+      }
+  return value;
+}
+}
 
 static bool IsNotWhitespace(const unsigned char ch) {
   return !std::isspace(ch);
@@ -62,13 +79,27 @@ static bool IsWhiteSpace(const unsigned char ch) { return std::isspace(ch); }
 std::string Remove(const std::string &str, char c);
 std::string Remove(const std::string &str, const std::string &substr);
 std::string ToLower(const std::string &str);
+std::string ToLower(std::string_view str);
+char ToLower(char c);
 std::string Trim(const std::string &str);
 std::string_view Trim(std::string_view str);
 bool Contains(const std::string &str, std::string_view view);
+bool Contains(const std::string& str, char c);
 std::vector<std::string> Split(const std::string &str, const std::string& delim);
 std::vector<std::string> Split(const std::string &str, char delim);
 std::vector<std::string> TrimEach(std::vector<std::string> &vec);
 std::string Quote(const std::string& str);
+template <typename T>
+Numeric StringToNumeric(const std::string_view str) {
+  if constexpr (!std::disjunction_v<std::is_integral<T>,
+                                    std::is_floating_point<T>>)
+    return Numeric();
+
+  if (auto v = internal::AttemptConversion<T>(str); v.has_value()) {
+    return Numeric(*v);
+  }
+  return Numeric();
+}
 template <typename... Args>
 bool FindAll(const std::string_view str, Args... args) {
   return ((str.find(args) != std::string::npos) && ...);
@@ -122,4 +153,5 @@ std::optional<std::string> FormatToString(const T &value) {
   }
   return std::nullopt;
 }
+
 }  // namespace Utils

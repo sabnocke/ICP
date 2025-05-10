@@ -70,9 +70,9 @@ class Parser {
       const std::string &line) const;
   [[nodiscard]] std::optional<Variable> parseVariable(
       const std::string &line) const;
-  [[nodiscard]] std::optional<TransitionRecord> parseTransition(
+  [[nodiscard]] std::optional<Transition> parseTransition(
       const std::string &line) const;
-  [[nodiscard]] std::optional<std::string> extractComment(
+  [[deprecated]] [[nodiscard]] std::optional<std::string> extractComment(
       const std::string &line) const;
   [[nodiscard]] std::optional<std::string> extractName(
       const std::string &line) const;

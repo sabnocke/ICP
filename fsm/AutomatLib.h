@@ -28,9 +28,13 @@ using namespace types;
 
 class Automat {
  public:
-  void addState(const std::tuple<std::string, std::string> &result);
+  void addState(const std::tuple<std::string, std::string> &result) {
+    states << State{std::get<0>(result), std::get<1>(result)};
+  }
   void addTransition(const Transition &result);
-  void addVariable(const Variable &result);
+  void addVariable(const Variable &result)  {
+    variables << result;
+  }
   void addInput(const std::string &name);
   void addOutput(const std::string &name);
   std::string Name;
@@ -38,6 +42,7 @@ class Automat {
   void PrepareHelperVariables();
   void PrepareIncludes();
   void PrepareExecuteFunction();
+  void Create();
   StateGroup states;
   TransitionGroup transitions;
   std::vector<std::string> inputs;
