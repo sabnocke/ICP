@@ -10,6 +10,7 @@
 #include "Utils.h"
 #include <range/v3/view.hpp>
 #include "types/all_types.h"
+#include "external/sol.hpp"
 
 
 namespace ParserLib {
@@ -37,8 +38,12 @@ class Automat {
   std::string Name;
   std::string Comment;
   void PrepareHelperVariables();
-  void PrepareIncludes();
+  void PrepareStateActions() const;
+  void PrepareVariables();
   void PrepareExecuteFunction();
+  void PrepareUtilsFunctions();
+  void PrepareSignals();
+  void LinkDelays();
   void Create();
   StateGroup states;
   TransitionGroup transitions;
@@ -48,8 +53,10 @@ class Automat {
   std::string currentState;
   bool firstRun = true;
   std::ostringstream oss;
+  sol::state lua{};
 
  private:
+
 };
 
 }  // namespace AutomatLib
