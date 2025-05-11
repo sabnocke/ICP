@@ -30,6 +30,7 @@ if (WIN32)
             fsm/types/variables.cpp
             fsm/types/states.cpp
             fsm/Timing-windows.cpp
+            fsm/Interpret.cpp
     )
 else ()
     add_executable(fsm
@@ -42,8 +43,11 @@ else ()
             fsm/types/states.cpp
             fsm/Timing-linux.cpp
             fsm/Interpret.h
+            fsm/Interpret.cpp
+
     )
 endif ()
+
 
 find_package(Lua REQUIRED)
 find_package(absl CONFIG REQUIRED)
@@ -74,3 +78,4 @@ target_link_libraries(fsm PRIVATE
         absl::log_initialize
 )
 
+add_subdirectory(src/icp-qt)
