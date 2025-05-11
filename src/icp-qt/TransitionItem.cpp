@@ -1,6 +1,12 @@
+/**
+ * @file TransitionItem.cpp
+ * @brief Implements visual behavior and path rendering for transitions between FSM states, including straight and curved lines, self-loops, direction arrows, and editable labels. Updates dynamically as states move within the graphics scene environment of the FSM editor. 
+ * @author Denis Milistenfer <xmilis00@stud.fit.vutbr.cz>
+ * @date 11.05.2025
+ */
+
 #include "TransitionItem.h"
 #include "StateItem.h"
-#include "EditableTextItem.h"
 #include <QPen>
 #include <QtMath>
 #include <qgraphicsscene.h>

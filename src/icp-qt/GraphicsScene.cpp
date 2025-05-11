@@ -1,3 +1,10 @@
+/**
+ * @file GraphicsScene.cpp
+ * @brief Implements the interactive scene logic for the FSM editor, including mouse handling for creating, editing, and deleting states and transitions in a QGraphicsScene environment. Handles visual logic for state interactions and user events from the canvas area of the application.
+ * @author Denis Milistenfer <xmilis00@stud.fit.vutbr.cz>
+ * @date 11.05.2025
+ */
+
 #include "GraphicsScene.h"
 #include "TransitionItem.h"
 #include <QGraphicsSceneMouseEvent>

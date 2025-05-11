@@ -1,3 +1,10 @@
+/**
+ * @file AutomatModel.cpp
+ * @brief Implements the logic for collecting FSM data from the GUI and exporting it into a parser-compatible format.
+ * @author Denis Milistenfer <xmilis00@stud.fit.vutbr.cz>
+ * @date 11.05.2025
+ */
+
 #include "AutomatModel.h"
 #include "mainwindow.h"
 #include "ui_mainwindow.h"

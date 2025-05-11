@@ -1,3 +1,10 @@
+/**
+ * @file StateItem.cpp
+ * @brief Implements the visual and interactive behavior of a state node in the FSM editor, including label editing, movement, highlighting, and initial state marking. Integrates with transitions and the FSM scene logic for graphical updates and events handling. 
+ * @author Denis Milistenfer <xmilis00@stud.fit.vutbr.cz>
+ * @date 11.05.2025
+ */
+
 #include "StateItem.h"
 #include "TransitionItem.h"
 #include "GraphicsScene.h"
