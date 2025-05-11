@@ -7,7 +7,6 @@
 
 #include "Interpret.h"
 #include "ParserLib.h"
-#include "Timing.h"
 #include "external/sol.hpp"
 
 void parserTest() {

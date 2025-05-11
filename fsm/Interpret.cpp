@@ -121,7 +121,7 @@ void Interpret::PrepareTransitions() {
   TransitionGroup ntg;
   for (auto& transition : transitionGroup) {
     auto ntr = Transition(transition);
-    ntr.cond = absl::StrFormat("print(%s)", transition.cond);
+    ntr.cond = absl::StrFormat("function o() return %s end; o()", transition.cond);
     ntg.Add(ntr);
   }
   transitionGroup = ntg;
@@ -155,7 +155,7 @@ bool StringToBool(const std::string& str) {
 }
 
 int Interpret::Execute(bool once = false) {
-  lua.open_libraries(sol::lib::base);
+  // lua.open_libraries(sol::lib::base);
   try {
     while (true && !once) {
       // First find all reachable transitions

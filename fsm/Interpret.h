@@ -3,7 +3,7 @@
 #pragma once
 #include "AutomatLib.h"
 #include "types/all_types.h"
-#include "timing.h"
+
 
 namespace Interpreter {
 using namespace types;
@@ -16,7 +16,6 @@ class Interpret {
   VariableGroup variableGroup;
   std::vector<std::string> inputs;
   std::vector<std::string> outputs;
-  Timing::Timer timer{};
   void ChangeState(const TransitionGroup& tg);
   void LinkDelays();
   void PrepareVariables();
