@@ -20,34 +20,16 @@ FetchContent_Declare(
         GIT_SHALLOW TRUE)
 FetchContent_MakeAvailable(fast_float)
 
-if (WIN32)
-    add_executable(fsm
-            fsm/AutomatLib.cpp
-            fsm/ParserLib.cpp
-            fsm/Utils.cpp
-            fsm/main.cpp
-            fsm/types/transitions.cpp
-            fsm/types/variables.cpp
-            fsm/types/states.cpp
-            fsm/Timing-windows.cpp
-            fsm/Interpret.cpp
-    )
-else ()
-    add_executable(fsm
-            fsm/AutomatLib.cpp
-            fsm/ParserLib.cpp
-            fsm/Utils.cpp
-            fsm/main.cpp
-            fsm/types/transitions.cpp
-            fsm/types/variables.cpp
-            fsm/types/states.cpp
-            fsm/Timing-linux.cpp
-            fsm/Interpret.h
-            fsm/Interpret.cpp
-
-    )
-endif ()
-
+add_executable(fsm
+        fsm/AutomatLib.cpp
+        fsm/ParserLib.cpp
+        fsm/Utils.cpp
+        fsm/main.cpp
+        fsm/types/transitions.cpp
+        fsm/types/variables.cpp
+        fsm/types/states.cpp
+        fsm/Interpret.cpp
+)
 
 find_package(Lua REQUIRED)
 find_package(absl CONFIG REQUIRED)
