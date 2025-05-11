@@ -2,8 +2,10 @@
 #define MAINWINDOW_H
 
 #include <QMainWindow>
+#include <QProcess>
 #include "GraphicsScene.h"
 #include "EditorMode.h"
+#include "AutomatLib.h"
 
 QT_BEGIN_NAMESPACE
 namespace Ui { class MainWindow; }
@@ -49,8 +51,6 @@ private slots:
 
   void onStartClicked(); // For handling start button click
 
-  void simulateFakeFSM(); // WILL BE REMOVED
-
 private:
   Ui::MainWindow *ui;             // UI definition from Designer
   GraphicsScene* scene;           // Scene handling the FSM editor canvas
@@ -61,8 +61,21 @@ private:
 
   void updateCurrentState(const QString& stateName);  // Highlight current FSM state
   void appendToTerminal(const QString& line);         // Add log/output line to terminal
+  void sendInputToFSM(const QString& input);          // Sends user input string to the FSM process via stdin
 
   EditorMode currentMode = EditorMode::Move; // Default to Move mode
+
+  QProcess* fsmProcess = nullptr;              // Holds running FSM process
+  void handleFSMStdout();                      // Called on new stdout data
+  void onFSMFinished(int, QProcess::ExitStatus); // Called when FSM exits
+
+  bool eventFilter(QObject* obj, QEvent* event) override; // For ENTER key presses in the terminal
+
+  bool waitingForInput = false;       // True if FSM is waiting for user input via terminal
+  std::shared_ptr<AutomatLib::Automat> model; // Stores currently loaded automat model from parser
+
+protected:
+  void keyPressEvent(QKeyEvent* event) override; // Handles key presses in the main window
 };
 
 #endif // MAINWINDOW_H

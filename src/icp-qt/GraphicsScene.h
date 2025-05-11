@@ -25,6 +25,14 @@ public:
   void notifyStateRenamed(const QString& oldName, const QString& newName);
   // Searches and returns a pointer to the state with the given name (or nullptr if not found)
   StateItem* findStateByName(const QString& name);
+  // Create a new state at a specific scene position
+  void createStateAt(const QPointF& pos);
+  // Creates and returns a transition (used for importing FSM models from file)
+  TransitionItem* createTransitionByNames(StateItem* from, StateItem* to);
+  // Clears all items (states and transitions) from the scene
+  void clearScene();
+  // Creates and returns a new state (used for importing FSM models from file)
+  StateItem* createState(const QPointF& pos, const QString& name);
 
 protected:
   // Handles mouse click events depending on current interaction mode
@@ -37,9 +45,6 @@ private:
   EditorMode currentMode = EditorMode::AddState; // Current interaction mode
   StateItem* selectedState = nullptr;            // First state selected for transition creation
   StateItem* initialState = nullptr;            // The current initial state
-
-  // Create a new state at a specific scene position
-  void createStateAt(const QPointF& pos);
 
   // Handle the second click to complete a transition creation
   void handleTransitionClick(StateItem* clicked);

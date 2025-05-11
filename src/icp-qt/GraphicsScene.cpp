@@ -200,3 +200,32 @@ void GraphicsScene::handleDeleteClick(const QPointF& pos) {
     return;
   }
 }
+
+// Clears the scene of all items (states and transitions)
+// Resets the initial state reference as well
+void GraphicsScene::clearScene() {
+  for (auto* item : items())
+    removeItem(item);
+  clear(); // Remove all items from the scene
+  initialState = nullptr; // Reset initial state
+}
+
+// Creates a new transition between two states by references
+// Adds the transition to both states and updates its position in the scene
+TransitionItem* GraphicsScene::createTransitionByNames(StateItem* from, StateItem* to) {
+  auto* transition = new TransitionItem(from, to);
+  from->addTransition(transition);
+  to->addTransition(transition);
+  addItem(transition);  // Add transition line to scene
+  transition->updatePosition(); // Recalculate its position based on current state positions
+  return transition;
+}
+
+// Creates and adds a named state at a given position
+// Used primarily during import or model restoration
+StateItem* GraphicsScene::createState(const QPointF& pos, const QString& name) {
+  auto* state = new StateItem(name); // Create new state with given name
+  state->setPos(pos);  // Set its position on the canvas
+  addItem(state);  // Add to scene
+  return state;
+}

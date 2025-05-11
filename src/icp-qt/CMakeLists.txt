@@ -24,6 +24,16 @@ set(PROJECT_SOURCES
         TransitionItem.h
         TransitionItem.cpp
         EditorMode.h
+        AutomatModel.cpp
+        AutomatModel.h
+
+        ${CMAKE_SOURCE_DIR}/fsm/ParserLib.cpp
+        ${CMAKE_SOURCE_DIR}/fsm/ParserLib.h
+        ${CMAKE_SOURCE_DIR}/fsm/Utils.cpp
+        ${CMAKE_SOURCE_DIR}/fsm/Utils.h
+        ${CMAKE_SOURCE_DIR}/fsm/AutomatLib.cpp
+        ${CMAKE_SOURCE_DIR}/fsm/AutomatLib.h
+        ${CMAKE_SOURCE_DIR}/fsm/types/variables.cpp
 )
 
 set(CMAKE_INCLUDE_CURRENT_DIR ON)
@@ -37,9 +47,23 @@ if(${QT_VERSION_MAJOR} GREATER_EQUAL 6)
         TransitionItem.h TransitionItem.cpp
         EditorMode.h
         AutomatModel.h AutomatModel.cpp
+    )
+    target_include_directories(icp-qt PRIVATE
+      ${CMAKE_SOURCE_DIR}/fsm
+      ${fast_float_SOURCE_DIR}/include
+    )
 
-
-
+    target_link_libraries(icp-qt PRIVATE
+      Qt${QT_VERSION_MAJOR}::Widgets
+      reproc++
+      range-v3::range-v3
+      re2::re2
+      fast_float
+      absl::btree
+      absl::container_common
+      absl::log
+      absl::log_initialize
+      rxcpp
     )
 # Define target properties for Android with Qt 6 as:
 #    set_property(TARGET icp-qt APPEND PROPERTY QT_ANDROID_PACKAGE_SOURCE_DIR
@@ -56,10 +80,29 @@ else()
         add_executable(icp-qt
             ${PROJECT_SOURCES}
         )
+        target_include_directories(icp-qt PRIVATE
+          ${CMAKE_SOURCE_DIR}/fsm
+          ${fast_float_SOURCE_DIR}/include
+        )
+
+        target_link_libraries(icp-qt PRIVATE
+          Qt${QT_VERSION_MAJOR}::Widgets
+          reproc++
+          range-v3::range-v3
+          re2::re2
+          fast_float
+          absl::btree
+          absl::container_common
+          absl::log
+          absl::log_initialize
+          rxcpp
+        )
     endif()
 endif()
 
-target_link_libraries(icp-qt PRIVATE Qt${QT_VERSION_MAJOR}::Widgets)
+target_link_libraries(icp-qt PRIVATE
+    Qt${QT_VERSION_MAJOR}::Widgets
+)
 
 # Qt for iOS sets MACOSX_BUNDLE_GUI_IDENTIFIER automatically since Qt 6.1.
 # If you are developing for iOS or macOS you should consider setting an
