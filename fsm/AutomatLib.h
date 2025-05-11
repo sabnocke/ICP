@@ -1,6 +1,18 @@
-#pragma once
-#include <absl/strings/str_join.h>
+/**
+ * @file   AutomatLib.h
+ * @brief  Deklaruje třídu Automat pro reprezentaci a vykonání konečného automatu.
+ * @author xhlochm00 Michal Hloch
+ * @author xzelni06 Robert Zelníček
+ * @details
+ * Tato třída uchovává stavy, přechody, vstupy, výstupy a proměnné automatu.
+ * Poskytuje metody pro připravení a spuštění generovaných funkcí, napojení zpoždění,
+ * vytvoření a propojení potřebných Lua helper funkcí a kontejnerů pro generovaný kód.
+ * @date   2025-05-11
+ */
 
+#pragma once
+
+#include <absl/strings/str_join.h>
 #include <functional>
 #include <iomanip>
 #include <sstream>
@@ -12,47 +24,93 @@
 #include "types/all_types.h"
 #include "external/sol.hpp"
 
-
 namespace ParserLib {
-struct TransitionRecord;
-struct VariableRecord;
+  struct TransitionRecord;  /**< Forward-declaration záznamu přechodu. */
+  struct VariableRecord;    /**< Forward-declaration záznamu proměnné. */
 }  // namespace ParserLib
 
 namespace AutomatLib {
-using namespace types;
+  using namespace types;
 
+  /**
+   * @class Automat
+   * @brief Reprezentuje konečný automat s jeho daty a generovanou implementací.
+   */
+  class Automat {
+  public:
+    /**
+     * @brief Přidá nový stav podle jména a akce.
+     * @param result dvojice (název stavu, text akce)
+     */
+    void addState(const std::tuple<std::string, std::string> &result) {
+      states << State{std::get<0>(result), std::get<1>(result)};
+    }
 
+    /**
+     * @brief Přidá nový přechod.
+     * @param result Záznam Transition.
+     */
+    void addTransition(const Transition &result);
 
+    /**
+     * @brief Přidá novou proměnnou.
+     * @param result Záznam Variable.
+     */
+    void addVariable(const Variable &result) {
+      variables << result;
+    }
 
-class Automat {
- public:
-  void addState(const std::tuple<std::string, std::string> &result) {
-    states << State{std::get<0>(result), std::get<1>(result)};
-  }
-  void addTransition(const Transition &result);
-  void addVariable(const Variable &result)  {
-    variables << result;
-  }
-  void addInput(const std::string &name);
-  void addOutput(const std::string &name);
-  std::string Name;
-  std::string Comment;
-  void PrepareHelperVariables();
-  void PrepareStateActions() const;
-  void PrepareVariables();
-  void PrepareTransitions();
-  void PrepareExecuteFunction();
-  void PrepareUtilsFunctions();
-  void PrepareSignals();
-  void LinkDelays();
-  void Create();
-  StateGroup states;
-  TransitionGroup transitions;
-  std::vector<std::string> inputs;
-  std::vector<std::string> outputs;
-  VariableGroup variables;
-  std::string currentState;
-  sol::state lua{};
-};
+    /**
+     * @brief Registruje vstupní signál.
+     * @param name Název vstupu.
+     */
+    void addInput(const std::string &name);
+
+    /**
+     * @brief Registruje výstupní signál.
+     * @param name Název výstupu.
+     */
+    void addOutput(const std::string &name);
+
+    /// Název automatu
+    std::string Name;
+
+    /// Komentář automatu (z textu)
+    std::string Comment;
+
+    /** @name Metody pro generování kódu */
+    ///@{
+    void PrepareHelperVariables();
+    void PrepareStateActions() const;
+    void PrepareVariables();
+    void PrepareTransitions();
+    void PrepareExecuteFunction();
+    void PrepareUtilsFunctions();
+    void PrepareSignals();
+    void LinkDelays();
+    void Create();
+    ///@}
+
+    /// Kontejner stavů
+    StateGroup states;
+
+    /// Kontejner přechodů
+    TransitionGroup transitions;
+
+    /// Seznam vstupů
+    std::vector<std::string> inputs;
+
+    /// Seznam výstupů
+    std::vector<std::string> outputs;
+
+    /// Kontejner proměnných
+    VariableGroup variables;
+
+    /// Název aktuálního stavu v době běhu
+    std::string currentState;
+
+    /// Integrovaný Lua interpreter (sol2)
+    sol::state lua{};
+  };
 
 }  // namespace AutomatLib

@@ -1,6 +1,16 @@
-#pragma once
-#include <re2/re2.h>
+/**
+ * @file   ParserLib.h
+ * @brief  Deklaruje parser pro načítání popisu automatu ze souboru.
+ * @author xhlochm00 Michal Hloch
+ * @details
+ * Obsahuje struktury pro záznam proměnných a přechodů (TransitionRecord, VariableRecord),
+ * výčet sekcí, a třídu Parser pro načtení a zpracování textového formátu automatu.
+ * @date   2025-05-09
+ */
 
+#pragma once
+
+#include <re2/re2.h>
 #include <optional>
 #include <string>
 #include <tuple>
@@ -9,88 +19,170 @@
 #include "types/all_types.h"
 
 namespace AutomatLib {
-class Automat;
+  class Automat;  ///< Forward declaration třídy Automat
 }
 
 namespace ParserLib {
-using namespace types;
-struct TransitionRecord {
-  std::string from;
-  std::string to;
-  std::string input;
-  std::string cond;
-  std::string delay;
+  using namespace types;
 
-  static TransitionRecord Empty() { return {}; }
-  [[nodiscard]] bool IsEmpty() const { return *this == Empty(); }
-  bool operator==(const TransitionRecord &other) const {
-    return from == other.from && to == other.to && input == other.input &&
-           cond == other.cond && delay == other.delay;
-  }
-  bool operator!=(const TransitionRecord &other) const {
-    return !(*this == other);
-  }
+  /**
+   * @struct TransitionRecord
+   * @brief Reprezentuje jeden přechod načtený ze souboru.
+   */
+  struct TransitionRecord {
+    std::string from;   /**< Výchozí stav */
+    std::string to;     /**< Cílový stav */
+    std::string input;  /**< Vstupní signál */
+    std::string cond;   /**< Podmínka */
+    std::string delay;  /**< Zpoždění */
 
-  friend std::ostream &operator<<(std::ostream &os,
-                                  const TransitionRecord &tr) {
-    os << absl::StrFormat("%s -> %s : on <%s> if <%s> after <%s>", tr.from, tr.to,
-                          tr.input, tr.cond, tr.delay);
-    return os;
-  }
-};
+    /**
+     * @brief Vrátí prázdný záznam.
+     */
+    static TransitionRecord Empty() { return {}; }
 
-struct VariableRecord {
-  std::string type;
-  std::string name;
-  std::string value;
+    /**
+     * @brief Kontrola, zda je záznam prázdný.
+     * @return true pokud se rovná prázdnému záznamu.
+     */
+    [[nodiscard]] bool IsEmpty() const { return *this == Empty(); }
 
-  static VariableRecord Empty() { return {}; }
-  [[nodiscard]] bool IsEmpty() const { return *this == Empty(); }
-  bool operator==(const VariableRecord &other) const {
-    return type == other.type && name == other.name && value == other.value;
-  }
-  bool operator!=(const VariableRecord &other) const {
-    return !(*this == other);
-  }
+    bool operator==(const TransitionRecord &other) const {
+      return from == other.from && to == other.to
+          && input == other.input && cond == other.cond
+          && delay == other.delay;
+    }
+    bool operator!=(const TransitionRecord &other) const {
+      return !(*this == other);
+    }
 
-  friend std::ostream &operator<<(std::ostream &os, const VariableRecord &record) {
-    os << absl::StrFormat("%s: %s := %s", record.name, record.type, record.value);
-    return os;
-  }
-};
+    /**
+     * @brief Výpis záznamu do streamu.
+     */
+    friend std::ostream &operator<<(std::ostream &os, const TransitionRecord &tr) {
+      os << absl::StrFormat("%s -> %s : on <%s> if <%s> after <%s>",
+                            tr.from, tr.to, tr.input, tr.cond, tr.delay);
+      return os;
+    }
+  };
 
-enum Section { Name, Comment, Variables, States, Transitions, Inputs, Outputs };
+  /**
+   * @struct VariableRecord
+   * @brief Reprezentuje jednu proměnnou načtenou ze souboru.
+   */
+  struct VariableRecord {
+    std::string type;  /**< Datový typ proměnné */
+    std::string name;  /**< Název proměnné */
+    std::string value; /**< Počáteční hodnota jako string */
 
-class Parser {
- public:
-  Parser();
-  AutomatLib::Automat parseAutomat(
-      const std::string &file);  // TODO change it to optional
-  [[nodiscard]] std::optional<std::tuple<std::string, std::string>> parseState(
-      const std::string &line) const;
-  [[nodiscard]] std::optional<Variable> parseVariable(
-      const std::string &line) const;
-  [[nodiscard]] std::optional<Transition> parseTransition(
-      const std::string &line) const;
-  [[deprecated]] [[nodiscard]] std::optional<std::string> extractComment(
-      const std::string &line) const;
-  [[nodiscard]] std::optional<std::string> extractName(
-      const std::string &line) const;
-  [[nodiscard]] std::optional<std::string> parseSignal(
-      const std::string &line) const;
+    static VariableRecord Empty() { return {}; }
+    [[nodiscard]] bool IsEmpty() const { return *this == Empty(); }
 
- private:
-  bool SectionHandler(const std::string &line,
-                      AutomatLib::Automat &automat) const;
+    bool operator==(const VariableRecord &other) const {
+      return type == other.type && name == other.name && value == other.value;
+    }
+    bool operator!=(const VariableRecord &other) const {
+      return !(*this == other);
+    }
 
-  Section ActualSection = Name;
+    /**
+     * @brief Výpis záznamu proměnné do streamu.
+     */
+    friend std::ostream &operator<<(std::ostream &os,
+                                    const VariableRecord &record) {
+      os << absl::StrFormat("%s: %s := %s",
+                            record.name, record.type, record.value);
+      return os;
+    }
+  };
 
-  std::unique_ptr<RE2> name_pattern_{};
-  std::unique_ptr<RE2> comment_pattern_{};
-  std::unique_ptr<RE2> variables_pattern_{};
-  std::unique_ptr<RE2> states_pattern_{};
-  std::unique_ptr<RE2> transitions_pattern_{};
-  std::unique_ptr<RE2> input_pattern_{};
-  std::unique_ptr<RE2> output_pattern_{};
-};
+  /**
+   * @enum Section
+   * @brief Výčet kapitol ve vstupním souboru automatu.
+   */
+  enum Section {
+    Name,
+    Comment,
+    Variables,
+    States,
+    Transitions,
+    Inputs,
+    Outputs
+  };
+
+  /**
+   * @class Parser
+   * @brief Načítá řádky z textového souboru a převádí je na struktury automatu.
+   */
+  class Parser {
+  public:
+    /** @brief Vytvoří parser a sestaví regexové vzory. */
+    Parser();
+
+    /**
+     * @brief Načte celý soubor a vrátí vytvořený objekt Automat.
+     * @param file Cesta k souboru.
+     * @return Instance Automat.
+     */
+    AutomatLib::Automat parseAutomat(const std::string &file);
+
+    /**
+     * @brief Zkusí rozparsovat stav ze zadaného řádku.
+     * @param line Text řádku.
+     * @return pair{název, kód akce} nebo nullopt.
+     */
+    [[nodiscard]] std::optional<std::tuple<std::string, std::string>>
+      parseState(const std::string &line) const;
+
+    /**
+     * @brief Zkusí rozparsovat proměnnou.
+     * @param line Text řádku.
+     */
+    [[nodiscard]] std::optional<Variable>
+      parseVariable(const std::string &line) const;
+
+    /**
+     * @brief Zkusí rozparsovat přechod.
+     * @param line Text řádku.
+     */
+    [[nodiscard]] std::optional<Transition>
+      parseTransition(const std::string &line) const;
+
+    /**
+     * @brief Extrahuje komentářový řádek (deprecated).
+     */
+    [[deprecated]]
+    [[nodiscard]] std::optional<std::string>
+      extractComment(const std::string &line) const;
+
+    /**
+     * @brief Extrahuje jméno (Name nebo jakýkoliv text).
+     */
+    [[nodiscard]] std::optional<std::string>
+      extractName(const std::string &line) const;
+
+    /**
+     * @brief Zparsuje signál (vstup nebo výstup).
+     */
+    [[nodiscard]] std::optional<std::string>
+      parseSignal(const std::string &line) const;
+
+  private:
+    /**
+     * @brief Interní handler na aktuální sekci, volá konkrétní parse*.
+     */
+    bool SectionHandler(const std::string &line,
+                        AutomatLib::Automat &automat) const;
+
+    Section ActualSection = Name;               /**< Aktuální zpracovávaná sekce */
+
+    std::unique_ptr<RE2> name_pattern_{};       /**< Regex pro jméno */
+    std::unique_ptr<RE2> comment_pattern_{};    /**< Regex pro komentář */
+    std::unique_ptr<RE2> variables_pattern_{};  /**< Regex pro proměnné */
+    std::unique_ptr<RE2> states_pattern_{};     /**< Regex pro stavy */
+    std::unique_ptr<RE2> transitions_pattern_{};/**< Regex pro přechody */
+    std::unique_ptr<RE2> input_pattern_{};      /**< Regex pro vstupy */
+    std::unique_ptr<RE2> output_pattern_{};     /**< Regex pro výstupy */
+  };
+
 }  // namespace ParserLib

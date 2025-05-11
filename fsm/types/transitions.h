@@ -1,3 +1,15 @@
+/**
+ * @file   transitions.h
+ * @brief  Definuje typy Transition a TransitionGroup pro správu přechodů automatu.
+ * @author xhlochm00 Michal Hloch
+ * @author xzelni06 Robert Zelníček
+ * @details
+ * Struktura Transition uchovává informace o jednotlivém přechodu mezi stavy.
+ * TransitionGroup slouží ke kolekci přechodů a poskytuje metody pro filtrování,
+ * skupinování, transformace a manipulaci s množinou přechodů.
+ * @date   2025-05-11
+ */
+
 #pragma once
 
 #include <absl/container/btree_set.h>
@@ -18,6 +30,10 @@ struct Transition;
 using TGTMap = absl::node_hash_map<std::string, TransitionGroup>;
 using TGT = absl::btree_set<Transition>;
 
+/**
+ * @struct Transition
+ * @brief Uchovává podrobnosti jednoho přechodu.
+ */
 struct Transition {
   std::string from;
   std::string to;
@@ -26,6 +42,9 @@ struct Transition {
   std::string delay;
   int delayInt = 0;
 
+  /**
+  * @brief Konstruktor pro přechod s textovým zpožděním.
+  */
   Transition(std::string _from, std::string _to, std::string _input,
              std::string _cond, std::string _delay)
       : from(std::move(_from)),
@@ -33,7 +52,9 @@ struct Transition {
         input(std::move(_input)),
         cond(std::move(_cond)),
         delay(std::move(_delay)) {}
-
+  /**
+  * @brief Konstruktor pro přechod s celočíselným zpožděním.
+  */
   Transition(std::string _from, std::string _to, std::string _input, int _delay)
       : from(std::move(_from)),
         to(std::move(_to)),
@@ -42,6 +63,10 @@ struct Transition {
 
   Transition() = default;
 
+  /**
+  * @brief Vrací data přechodu jako tuple.
+  * @return Tuple (from, to, input, cond, delay).
+  */
   std::tuple<std::string, std::string, std::string, std::string, std::string>
   Tuple() const {
     return std::make_tuple(from, to, input, cond, delay);
@@ -59,6 +84,9 @@ struct Transition {
     return std::tie(from, to, input, cond, delay) <
            std::tie(other.from, other.to, other.input, other.cond, other.delay);
   }
+  /**
+  * @brief Výpis přechodu do výstupního proudu.
+  */  
   friend std::ostream& operator<<(std::ostream& os,
                                   const Transition& transition) {
     os << absl::StrFormat(
@@ -74,6 +102,10 @@ struct Transition {
   }
 };
 
+/**
+ * @struct TransitionGroup
+ * @brief Kolekce přechodů s nástroji pro manipulaci.
+ */
 struct TransitionGroup {
  private:
   absl::btree_set<Transition> _transitions;
