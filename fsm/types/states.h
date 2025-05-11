@@ -42,7 +42,7 @@ public:
     auto it = states | ranges::views::transform([](const State& state){return std::make_pair(state.Name, state.Action);});
     return it | ranges::to<std::vector<std::pair<std::string, std::string>>>;
   }
-  State First() {
+  State First() const {
     if (states.empty()) {
       return {};
     }
@@ -56,7 +56,7 @@ public:
 
     return StateGroup{std::move(s)};
   }
-  size_t Size() const {
+  [[nodiscard]] size_t Size() const {
     return states.size();
   }
   StateGroup Add(const State &state) {
@@ -75,5 +75,8 @@ public:
     }
     return os;
   }
+  [[nodiscard]] auto begin() const  { return states.begin(); }
+  [[nodiscard]] auto end() const  { return states.end(); }
+  [[nodiscard]] auto empty() const { return states.empty(); }
 };
 }

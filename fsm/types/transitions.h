@@ -14,17 +14,17 @@
 
 namespace types {
 struct TransitionGroup;
-using TGT = absl::node_hash_map<std::string, TransitionGroup>;
+struct Transition;
+using TGTMap = absl::node_hash_map<std::string, TransitionGroup>;
+using TGT = absl::btree_set<Transition>;
 
 struct Transition {
   std::string from;
   std::string to;
   std::string input;
   std::string cond;
-  // std::optional<std::function<bool()>> condition = std::nullopt;
   std::string delay;
   int delayInt = 0;
-  // std::optional<std::function<void()>> action = std::nullopt;
 
   Transition(std::string _from, std::string _to, std::string _input,
              std::string _cond, std::string _delay)
@@ -74,13 +74,12 @@ struct Transition {
   }
 };
 
-//TODO do I need to remember order?
 struct TransitionGroup {
  private:
   absl::btree_set<Transition> _transitions;
   std::list<Transition> _tr;
   std::vector<Transition> _tr2;
-  TGT _transition_groups;
+  TGTMap _transition_groups;
 
  public:
   TransitionGroup() = default;
@@ -99,17 +98,17 @@ struct TransitionGroup {
   size_t Count = 0;
   [[nodiscard]] size_t Size() const { return _transitions.size(); }
   [[nodiscard]] bool Some() const { return Size() != 0; }
+  [[nodiscard]] bool None() const { return Size() == 0; }
   [[nodiscard]] bool IsEmpty() const { return Size() == 0; }
   static TransitionGroup Empty() {
     auto tg = TransitionGroup{};
     tg._transition_groups = {};
     return tg;
   }
-  // TransitionGroup() = default;
+
   void Add(const Transition& transition) { _transitions.insert(transition); }
   void Add(const std::string& from, const std::string& to,
-           const std::string& input,
-           int delay) {
+           const std::string& input, int delay) {
     _transitions.insert({from, to, input, delay});
   }
   TransitionGroup Cost(int cost) {
@@ -119,7 +118,14 @@ struct TransitionGroup {
               });
     return TransitionGroup(it | ranges::to<decltype(_transitions)>);
   }
-  size_t CostAtMost(int cost);
+  size_t CostAtMost(const int cost) {
+    size_t total = 0;
+    for (const auto& transition : _transitions) {
+      if (GetCost(transition) <= cost)
+        total++;
+    }
+    return total;
+  }
   static int GetCost(const Transition& transition) {
     auto [from, to, input, cond, delay] = transition.Tuple();
     const int total = (!cond.empty() ? 1 : 0) +   // Add 1 if cond is not empty
@@ -127,15 +133,38 @@ struct TransitionGroup {
                       (!input.empty() ? 4 : 0);   // Add 4 if input is not empty
     return total;
   }
-  TGT GroupTransitions();
+  TGTMap GroupTransitions() {
+    TGTMap transitions;
+    for (const auto& transition : _transitions) {
+      transitions[transition.from].Add(transition);
+    }
+    _transition_groups = transitions;
+    return transitions;
+  }
   [[nodiscard]] absl::btree_set<Transition> Get() const {
     return _transitions;
   };
-  TransitionGroup Retrieve(const std::string& input);
-  [[nodiscard]] TransitionGroup Select(
-      const std::function<Transition(Transition)>& pred) const {
-    auto it = _transitions | ranges::views::transform(pred);
-    return TransitionGroup(it | ranges::to<absl::btree_set<Transition>>);
+  TransitionGroup Retrieve(const std::string& input) {
+    if (_transition_groups.empty())
+      GroupTransitions();
+
+    if (_transition_groups.contains(input))
+      return _transition_groups.at(input);
+
+    return Empty();
+  }
+
+  TransitionGroup Transform(const std::function<Transition(Transition)>& fun) {
+    auto it = _transitions | ranges::views::transform(fun);
+    const auto transitions = it | ranges::to<absl::btree_set<Transition>>;
+    return TransitionGroup(transitions);
+  }
+  void TransformAction(const std::function<Transition(Transition)>& fun) {
+    TGT n;
+    for (auto& tr : _transitions) {
+      n.insert(fun(tr));
+    }
+    _transitions = n;
   }
   [[nodiscard]] TransitionGroup Where(
       const std::function<bool(Transition)>& pred) const {
@@ -144,6 +173,9 @@ struct TransitionGroup {
   }
   [[nodiscard]] TransitionGroup WhereNoEvent() const {
     return Where([](const auto& tr) { return tr.input.empty(); });
+  }
+  [[nodiscard]] TransitionGroup WhereEvent() const {
+    return Where([](const auto& tr) {return !tr.input.empty();});
   }
   [[nodiscard]] TransitionGroup WhereTimer() const {
     return Where([](const auto& tr) { return !tr.delay.empty(); });
@@ -158,7 +190,29 @@ struct TransitionGroup {
     return WhereCond().WhereTimer();
   }
   [[nodiscard]] TransitionGroup WhereNone() const {
-    return Where([](const auto& tr) { return tr.cond.empty() && tr.delay.empty() && tr.input.empty(); });
+    return Where([](const auto& tr) {
+      return tr.cond.empty() && tr.delay.empty() && tr.input.empty();
+    });
+  }
+  [[nodiscard]] std::optional<Transition> Smallest() const {
+    const auto min = WhereTimer().First();
+    if (!min.has_value())
+      return std::nullopt;
+    auto min_v = min.value().get();
+    for (auto &tr : _transitions) {
+      if (tr.delayInt < min_v.delayInt)
+        min_v = tr;
+    }
+    return min_v;
+  }
+  void Merge(TransitionGroup& trg) {
+    for (auto& tr : trg._transitions) {
+      if (auto pos = _transitions.find(tr); pos != _transitions.end()) {
+        _transitions.erase(pos);
+        _transitions.insert(tr);
+      } else
+        _transitions.insert(tr);
+    }
   }
   bool Contains(const Transition& tr) {
     auto f =
@@ -190,12 +244,23 @@ struct TransitionGroup {
     return std::cref(*_transitions.begin());
   }
 
-  friend std::ostream& operator<<(std::ostream &os, const TransitionGroup &tg) {
+  friend std::ostream& operator<<(std::ostream& os, const TransitionGroup& tg) {
     for (const auto& tr : tg.Get()) {
       os << tr << std::endl;
     }
     return os;
   }
+  std::string Out() {
+    std::stringstream ss;
+    for (const auto& tr : _transitions) {
+      ss << tr.to;
+    }
+    return ss.str();
+  }
+
+  [[nodiscard]] auto begin() const {return _transitions.begin();}
+  [[nodiscard]] auto end() const {return _transitions.end();}
+  [[nodiscard]] auto empty() const {return _transitions.empty();}
 
  private:
   static std::string Format(const std::string_view name,
