@@ -42,12 +42,18 @@ public:
     auto it = states | ranges::views::transform([](const State& state){return std::make_pair(state.Name, state.Action);});
     return it | ranges::to<std::vector<std::pair<std::string, std::string>>>;
   }
-  State First() const {
+  [[nodiscard]] State First() const {
     if (states.empty()) {
       return {};
     }
     return states.front();
   }
+
+  StateGroup Find(std::string name) const {
+    auto it = states | ranges::views::filter([name](const State& state) {return state.Name == name;});
+    return StateGroup(it | ranges::to<std::vector<State>>());
+  }
+
   StateGroup Rest() {
     if (states.empty()) {
       return {};

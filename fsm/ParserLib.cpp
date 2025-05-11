@@ -232,7 +232,9 @@ std::optional<Transition> Parser::parseTransition(
 
   if (RE2::FullMatch(line, *transitions_pattern_, &from, &to, &input, &cond,
                      &delay)) {
-    return Transition{from, to, input, cond, delay};
+    auto cond2 = Utils::Remove(cond, '[');
+    auto cond3 = Utils::Remove(cond2, ']');
+    return Transition{from, to, input, Utils::Trim(cond3), delay};
   }
 
   return NOTHING;

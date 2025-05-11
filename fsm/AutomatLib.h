@@ -40,6 +40,7 @@ class Automat {
   void PrepareHelperVariables();
   void PrepareStateActions() const;
   void PrepareVariables();
+  void PrepareTransitions();
   void PrepareExecuteFunction();
   void PrepareUtilsFunctions();
   void PrepareSignals();
@@ -51,12 +52,7 @@ class Automat {
   std::vector<std::string> outputs;
   VariableGroup variables;
   std::string currentState;
-  bool firstRun = true;
-  std::ostringstream oss;
   sol::state lua{};
-
- private:
-
 };
 
 }  // namespace AutomatLib

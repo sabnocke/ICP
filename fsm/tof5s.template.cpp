@@ -3,6 +3,7 @@
 #include <string>
 
 #include "AutomatRuntime.h"
+#include "Timing.h"
 
 namespace tof5s {
 using std::string;
@@ -67,33 +68,42 @@ void Active2Timing() {
 void execute() {
   bool terminate = false;
   TransitionGroup group;
+  Timing::Timer timer;
   group.Add(
-      "IDLE", "ACTIVE", "in", []() { return strtn(valueof("in")) == 1; }, "");
+      "IDLE", "ACTIVE", "in", []() { return strtn(valueof("in")) == 1; }, timeout);
   group.Add(
-      "ACTIVE", "TIMING", "in", []() { return strtn(valueof("in")) == 0; }, "");
+      "ACTIVE", "TIMING", "in", []() { return strtn(valueof("in")) == 0; }, timeout);
   group.Add(
-      "TIMING", "ACTIVE", "in", []() { return strtn(valueof("in")) == 1; }, "");
-  group.Add("ACTIVE", "IDLE", "", std::nullopt, "timeout");
+      "TIMING", "ACTIVE", "in", []() { return strtn(valueof("in")) == 1; }, timeout);
+  group.Add("ACTIVE", "IDLE", "", std::nullopt, timeout);
+  group.RegisterAction("IDLE", idle);
+  group.RegisterAction("ACTIVE", active);
+  group.RegisterAction("TIMING", timing);
   group.GroupTransitions();
-  //TODO pass transitions and states from AutomatLib to AutomatRuntime
-  //TODO AutomatRuntime should define a filter that retrieves applicable states
-
 
   while (!terminate) {
     auto res = group.Retrieve(activeState);
     if (res.IsEmpty()) {   //* alternatively "independent" means any viable
       continue; // or end?
     }
-    if (auto res2 = res.WhereTimer(); res2.Some()) {
-      //TODO there are timers to be set
+    if (auto res2 = res.WhereCondTimer(); res2.Some()) {
+      timer.SetTimers(res2);
     } else if (auto res3 = res.WhereCond(); res3.Some()) {
-      //TODO there are immediate transitions
+      if (const auto tr = res3.First(); tr.has_value()) {
+        auto t = tr.value().get().to;
+        std::cerr << "New state: " << t << std::endl;
+      }
+      // Else won't be needed if group was empty it wouldn't get this far
     }
     //TODO remove timers of inactive states, if there are any
-    //? first has to maintain which timers were set in which state
+    //* Unnecessary Timer terminates any leftover timers before returning
     //TODO wait for a timer or input event
-    //? i need to be able to do this...
-    if (false /*TODO if timeout happened find out which one it was and move there */);
+    //* I can do timers
+    //* Input relies on communication method
+    if (std::optional<Transition> result = timer.Start(); result.has_value()) {
+      const auto& t = result.value();
+      std::cerr << "New state: " << t.to << std::endl;
+    }
     if (false /*TODO if it is input event, then find the correct new state */);
       if (false /*TODO if it is non-delayed transit, then move there */);
       if (false /*TODO if it is delayed transit, then wait */);

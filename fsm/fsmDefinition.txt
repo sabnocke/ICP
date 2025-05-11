@@ -7,11 +7,11 @@ Output:
 Variables:
     int timeout = 5000
 States:
-state IDLE [ out(1) ]
-state ACTIVE [ out(1) ]
-state TIMING []
+state IDLE [ print(out1) ]
+state ACTIVE [ print(out1) ]
+state TIMING [ print('timing') ]
 Transitions:
-    IDLE --> ACTIVE: in [ tonumber(in1()) == 1 ]
-    ACTIVE --> TIMING: in [ tonumber(in1()) == 0 ]
-    TIMING --> ACTIVE : in [ tonumber(in1()) == 1 ]
+    IDLE --> ACTIVE: in1 [ tonumber(in1) == 1 ]
+    ACTIVE --> TIMING: in1 [ tonumber(in1) == 0 ]
+    TIMING --> ACTIVE : in1 [ tonumber(in1) == 1 ]
     TIMING --> IDLE : @ timeout

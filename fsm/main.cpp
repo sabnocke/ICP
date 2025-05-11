@@ -1,11 +1,14 @@
 
 #include <absl/strings/str_format.h>
-#include <iostream>
+
+#include <cassert>
 #include <fstream>
+#include <iostream>
+
+#include "Interpret.h"
 #include "ParserLib.h"
 #include "Timing.h"
 #include "external/sol.hpp"
-
 
 void parserTest() {
   ParserLib::Parser parser;
@@ -53,16 +56,24 @@ void luaTest() {
 int main(int argc, char** argv) {
   if (argc != 2) {
     std::cerr << "Requires path to valid fsm definition" << std::endl;
+    return 1;
   }
+  sol::state lua{};
+  lua.open_libraries(sol::lib::base, sol::lib::package);
   auto parser = ParserLib::Parser();
   auto automat = parser.parseAutomat(argv[1]);
-  automat.PrepareUtilsFunctions();
-  automat.PrepareStateActions();
-  automat.PrepareVariables();
-  automat.PrepareSignals();
-  automat.LinkDelays();
-
+  Interpreter::Interpret interpreter(automat);
+  interpreter.Prepare();
   std::cout << automat.transitions << std::endl;
-
+  std::cout << interpreter.transitionGroup << std::endl;
+  interpreter.Execute(false);
+  // auto cond = automat.transitions.WhereCond();
+  // std::cout << cond << std::endl;
+  // if (auto item = cond.First(); item.has_value()) {
+  //   auto i = item.value().get().cond;
+  //   std::cout << i << std::endl;
+  //   lua.safe_script(std::string_view(i));
+  //
+  // }
   return 0;
 }

@@ -78,4 +78,4 @@ target_link_libraries(fsm PRIVATE
         absl::log_initialize
 )
 
-add_subdirectory(src/icp-qt)
+# add_subdirectory(src/icp-qt)

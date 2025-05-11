@@ -12,19 +12,27 @@ class Interpret {
   AutomatLib::Automat _automat;
   std::string activeState;
   StateGroup stateGroup;
-  TransitionGroup transitionGroup;
+
   VariableGroup variableGroup;
   std::vector<std::string> inputs;
   std::vector<std::string> outputs;
   Timing::Timer timer{};
+  void ChangeState(const TransitionGroup& tg);
+  void LinkDelays();
+  void PrepareVariables();
+  void PrepareTransitions();
+  void PrepareSignals();
 
-public:
+ public:
+  TransitionGroup transitionGroup;
+  void Prepare();
   Interpret() = default;
-  explicit Interpret(AutomatLib::Automat automat);
+  // explicit Interpret(AutomatLib::Automat automat);
   static void simpleExample();
+  explicit Interpret(AutomatLib::Automat& automat);
   sol::state lua{};
 
-  void Execute(bool once);
+  int Execute(bool once);
 };
 
 } // Interpreter
