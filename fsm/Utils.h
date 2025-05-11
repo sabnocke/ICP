@@ -96,7 +96,7 @@ Numeric StringToNumeric(const std::string_view str) {
     return Numeric();
 
   if (auto v = internal::AttemptConversion<T>(str); v.has_value()) {
-    return Numeric(*v);
+    return Numeric(v.value());
   }
   return Numeric();
 }

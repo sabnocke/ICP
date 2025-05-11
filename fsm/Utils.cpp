@@ -7,9 +7,6 @@
 #include <range/v3/all.hpp>
 #include <sstream>
 
-#include "absl/strings/ascii.h"
-#include "absl/strings/match.h"
-
 namespace Utils {
 
 std::string Trim(const std::string &str) {
@@ -45,7 +42,6 @@ std::string_view Trim(const std::string_view str) {
   const auto count = ranges::distance(first, last.base());
 
   return str.substr(start, count);
-  // return {first, last.base()};
 }
 
 std::string Remove(const std::string &str, const char c) {
@@ -65,22 +61,24 @@ std::string Remove(const std::string &str, const std::string &substr) {
 
 std::string ToLower(const std::string &str) {
   auto view = str | ranges::views::transform(
-                        [](auto c) { return absl::ascii_tolower(c); });
+                        [](auto c) { return std::tolower(c); });
   return view | ranges::to<std::string>();
 }
 std::string ToLower(const std::string_view str) {
   return ToLower(std::string(str));
 }
-char ToLower(const char c) { return absl::ascii_tolower(c); }
+char ToLower(const char c) { return std::tolower(c); }
 
 bool Contains(const std::string &str, const std::string_view view) {
   const auto lower = ToLower(str);
-  const auto lower_s = ToLower(view);
-  return absl::StrContains(lower, lower_s);
+  if (const auto lower_s = ToLower(view);
+      lower.find(lower_s) == std::string::npos)
+    return false;
+  return true;
 }
 
 bool Contains(const std::string &str, const char c) {
-  return absl::StrContains(ToLower(str), ToLower(c));
+  return ToLower(str).find(c) != std::string::npos;
 }
 
 std::vector<std::string> Split(const std::string &str, const char delim) {
