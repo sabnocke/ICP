@@ -22,6 +22,7 @@ public:
   Interpret() = default;
   explicit Interpret(AutomatLib::Automat automat);
   static void simpleExample();
+  sol::state lua{};
 
   void Execute(bool once);
 };
