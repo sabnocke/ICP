@@ -37,6 +37,9 @@
     {
       "name": "windows",
       "hidden": true,
+      "cacheVariables": {
+        "VCPKG_CONFIGURATION_HOSTNAME": "x64-windows"
+      },
       "condition": {
         "type": "equals",
         "lhs": "${hostSystemName}",
@@ -46,6 +49,9 @@
     {
       "name": "linux",
       "hidden": true,
+      "cacheVariables": {
+        "VCPKG_CONFIGURATION_HOSTNAME": "x64-linux"
+      },
       "condition": {
         "type": "equals",
         "lhs": "${hostSystemName}",
