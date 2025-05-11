@@ -1,7 +1,23 @@
+/**
+ * @file   Utils.h
+ * @brief  Pomocné funkce a šablony pro práci s textem a bezpečnou konverzi.
+ * @author xhlochm00 Michal Hloch
+ * @details
+ * Obsahuje:
+ *  - šablony pro detekci typů (string, string_view, C-string, streamovatelné typy)
+ *  - funkce pro trim, lowercase, split, remove, contains, quote
+ *  - šablonu StringToNumeric pro převod na Numeric
+ *  - šablonu FindAll pro testování více podřetězců
+ *  - šablony pro konverzi libovolného typu na std::string
+ *  - detailní funkci AttemptConversion používající fast_float
+ * @date   2025-05-11
+ */
 #pragma once
+
 #include <locale>
 #include <optional>
 #include <string>
+#include <vector>
 #include <fast_float/fast_float.h>
 
 #include "absl/strings/str_format.h"
@@ -9,123 +25,188 @@
 
 namespace Utils {
 using namespace types;
-namespace detail {  // Using a detail namespace for traits
 
-// Trait to check if T is std::string or const std::string& etc.
+namespace detail {
+/**
+ * @brief Trait kontrolující, zda je T typu std::string.
+ */
 template <typename T>
 struct is_std_string_impl : std::is_same<std::string, std::decay_t<T>> {};
 template <typename T>
 inline constexpr bool is_std_string_v = is_std_string_impl<T>::value;
 
-// Trait to check if T is std::string_view or const std::string_view& etc.
+/**
+ * @brief Trait kontrolující, zda je T typu std::string_view.
+ */
 template <typename T>
-struct is_std_string_view_impl
-    : std::is_same<std::string_view, std::decay_t<T>> {};
+struct is_std_string_view_impl : std::is_same<std::string_view, std::decay_t<T>> {};
 template <typename T>
 inline constexpr bool is_std_string_view_v = is_std_string_view_impl<T>::value;
 
-// Trait to check if T is a C-style string (char*, const char*, char[], const
-// char[]) Using the revised version from previous discussion
+/**
+ * @brief Trait kontrolující, zda je T C-string (char*, char[]).
+ */
 template <typename T>
 struct is_c_string_condition {
   static constexpr bool value =
-      std::is_same_v<char, std::remove_cv_t<std::remove_pointer_t<
-                               std::decay_t<T>>>> ||  // char*, const char*
+      std::is_same_v<char, std::remove_cv_t<std::remove_pointer_t<std::decay_t<T>>>> ||
       (std::is_array_v<std::remove_reference_t<T>> &&
-       std::is_same_v<char, std::remove_cv_t<std::remove_extent_t<
-                                std::remove_reference_t<T>>>>);  // char[],
-                                                                 // const char[]
+       std::is_same_v<char, std::remove_cv_t<std::remove_extent_t<std::remove_reference_t<T>>>>);
 };
-template <typename T, bool ConditionValue = is_c_string_condition<T>::value>
+template <typename T, bool V = is_c_string_condition<T>::value>
 struct is_c_string_impl : std::false_type {};
 template <typename T>
 struct is_c_string_impl<T, true> : std::true_type {};
 template <typename T>
 inline constexpr bool is_c_string_v = is_c_string_impl<T>::value;
 
-// Trait to check if T can be streamed to std::ostream (SFINAE based for C++17)
+/**
+ * @brief Trait kontrolující, zda lze typ T streamovat do std::ostream.
+ */
 template <typename T, typename = void>
 struct is_streamable_impl : std::false_type {};
-
 template <typename T>
-struct is_streamable_impl<T,
-                          std::void_t<decltype(std::declval<std::ostream &>()
-                                               << std::declval<const T &>())>>
+struct is_streamable_impl<
+    T,
+    std::void_t<decltype(std::declval<std::ostream &>() << std::declval<const T &>())>>
     : std::true_type {};
 template <typename T>
 inline constexpr bool is_streamable_v = is_streamable_impl<T>::value;
-
 }  // namespace detail
+
 namespace internal {
+/**
+ * @brief Pokusí se převést string_view na hodnotu typu T pomocí fast_float.
+ * @tparam T Numerický typ (integral nebo floating).
+ * @param str Vstupní řetězec.
+ * @return Optional s výsledkem nebo nullopt.
+ */
 template <typename T>
 std::optional<T> AttemptConversion(const std::string_view str) {
-  const auto first = str.data();
-  const auto last = str.data() + str.size();
+  const char* first = str.data();
+  const char* last = first + str.size();
   T value{};
-
-  if (auto [ptr, ec] = fast_float::from_chars(first, last, value);
-      ec != std::errc() || ptr != last) {
+  auto [ptr, ec] = fast_float::from_chars(first, last, value);
+  if (ec != std::errc() || ptr != last) {
     return std::nullopt;
-      }
+  }
   return value;
 }
-}
+}  // namespace internal
 
-static bool IsNotWhitespace(const unsigned char ch) {
+/**
+ * @brief Test, zda znak není bílý znak.
+ * @param ch Vstupní znak.
+ * @return true pokud není whitespace.
+ */
+static bool IsNotWhitespace(unsigned char ch) {
   return !std::isspace(ch);
 }
-static bool IsWhiteSpace(const unsigned char ch) { return std::isspace(ch); }
 
+/**
+ * @brief Test, zda znak je bílý znak.
+ * @param ch Vstupní znak.
+ * @return true pokud je whitespace.
+ */
+static bool IsWhiteSpace(unsigned char ch) {
+  return std::isspace(ch);
+}
+
+/**
+ * @brief Odebere všechny výskyty znaku c z řetězce.
+ */
 std::string Remove(const std::string &str, char c);
+
+/**
+ * @brief Odebere všechny výskyty podřetězce substr z řetězce.
+ */
 std::string Remove(const std::string &str, const std::string &substr);
+
+/**
+ * @brief Převede řetězec na malá písmena.
+ */
 std::string ToLower(const std::string &str);
 std::string ToLower(std::string_view str);
 char ToLower(char c);
+
+/**
+ * @brief Ořízne bílé znaky na okrajích řetězce.
+ */
 std::string Trim(const std::string &str);
 std::string_view Trim(std::string_view str);
+
+/**
+ * @brief Test, zda str obsahuje podřetězec view (case-insensitive).
+ */
 bool Contains(const std::string &str, std::string_view view);
-bool Contains(const std::string& str, char c);
-std::vector<std::string> Split(const std::string &str, const std::string& delim);
+bool Contains(const std::string &str, char c);
+
+/**
+ * @brief Rozdělí řetězec podle char delimiteru.
+ */
 std::vector<std::string> Split(const std::string &str, char delim);
+
+/**
+ * @brief Rozdělí řetězec podle string delimiteru.
+ */
+std::vector<std::string> Split(const std::string &str, const std::string &delim);
+
+/**
+ * @brief Ořízne každý prvek vektoru řetězců.
+ */
 std::vector<std::string> TrimEach(std::vector<std::string> &vec);
-std::string Quote(const std::string& str);
+
+/**
+ * @brief Přidá uvozovky okolo řetězce.
+ */
+std::string Quote(const std::string &str);
+
+/**
+ * @brief Převod string_view na Numeric.
+ * @tparam T Numerický typ.
+ */
 template <typename T>
 Numeric StringToNumeric(const std::string_view str) {
-  if constexpr (!std::disjunction_v<std::is_integral<T>,
-                                    std::is_floating_point<T>>)
+  if constexpr (!std::disjunction_v<std::is_integral<T>, std::is_floating_point<T>>)
     return Numeric();
-
-  if (auto v = internal::AttemptConversion<T>(str); v.has_value()) {
+  if (auto v = internal::AttemptConversion<T>(str); v)
     return Numeric(v.value());
-  }
   return Numeric();
 }
+
+/**
+ * @brief Test, zda str obsahuje všechny args (variadic).
+ */
 template <typename... Args>
 bool FindAll(const std::string_view str, Args... args) {
   return ((str.find(args) != std::string::npos) && ...);
 }
 
+/**
+ * @brief Pokusí se převést arbitrátní streamovatelný typ na std::string.
+ * @tparam T Libovolný typ.
+ */
 template <typename T>
 std::optional<std::string> ToStringOpt(const T &value) {
-  using DecayedT = std::decay_t<T>;
-  if constexpr (detail::is_std_string_v<DecayedT>) {
+  using Decayed = std::decay_t<T>;
+  if constexpr (detail::is_std_string_v<Decayed>) {
     return value;
   }
-  if constexpr (detail::is_std_string_view_v<DecayedT>) {
+  if constexpr (detail::is_std_string_view_v<Decayed>) {
     return std::string(value);
   }
-  if constexpr (detail::is_c_string_v<DecayedT>) {
-    if constexpr (std::is_pointer_v<DecayedT>) {
-      return (value == nullptr) ? std::string("") : std::string(value);
-    } else
+  if constexpr (detail::is_c_string_v<Decayed>) {
+    if constexpr (std::is_pointer_v<Decayed>)
+      return value ? std::string(value) : std::string();
+    else
       return std::string(value);
   }
-  if constexpr (std::is_same_v<DecayedT, bool>) {
+  if constexpr (std::is_same_v<Decayed, bool>) {
     std::ostringstream os;
     os << std::boolalpha << value;
     return os.str();
   }
-  if constexpr (detail::is_streamable_v<DecayedT>) {
+  if constexpr (detail::is_streamable_v<Decayed>) {
     std::ostringstream os;
     os << value;
     return os.str();
@@ -133,22 +214,22 @@ std::optional<std::string> ToStringOpt(const T &value) {
   return std::nullopt;
 }
 
+/**
+ * @brief Formátování hodnoty pomocí absl::StrFormat.
+ */
 template <typename T>
 std::optional<std::string> FormatToString(const T &value) {
-  using DecayedT = std::decay_t<T>;
-
-  if constexpr (detail::is_std_string_v<DecayedT> ||
-                detail::is_std_string_view_v<DecayedT>) {
+  using Decayed = std::decay_t<T>;
+  if constexpr (detail::is_std_string_v<Decayed> || detail::is_std_string_view_v<Decayed>) {
     return absl::StrFormat("%s", value);
   }
-  if constexpr (detail::is_c_string_v<DecayedT>) {
-    if constexpr (std::is_pointer_v<DecayedT> && value == nullptr)
-      return std::string("");
+  if constexpr (detail::is_c_string_v<Decayed>) {
+    if constexpr (std::is_pointer_v<Decayed> && value == nullptr)
+      return std::string();
     else
       return std::string(value);
   }
-  if constexpr (std::is_arithmetic_v<DecayedT> ||
-                std::is_same_v<DecayedT, bool>) {
+  if constexpr (std::is_arithmetic_v<Decayed> || std::is_same_v<Decayed, bool>) {
     return absl::StrFormat("%v", value);
   }
   return std::nullopt;
