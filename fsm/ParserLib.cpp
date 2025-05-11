@@ -20,7 +20,7 @@ namespace ParserLib {
 Parser::Parser() {
   RE2::Options options;
   options.set_case_sensitive(false);
-  name_pattern_ = std::make_unique<RE2>(R"(^name\s*?(?<c>.*)$)", options);
+  name_pattern_ = std::make_unique<RE2>(R"(^\s*Name\s*:\s*(?<c>.*)$)", options);
   comment_pattern_ = std::make_unique<RE2>(R"(^.*?:\s*?(?<c>.*)$)", options);
   variables_pattern_ = std::make_unique<RE2>(
       R"((?<type>\w+) (?<name>\w+) = (?<value>\w+))", options);
@@ -97,8 +97,8 @@ AutomatLib::Automat Parser::parseAutomat(const std::string &file) {
 bool Parser::SectionHandler(const std::string &line,
                             AutomatLib::Automat &automat) const {
   //? return false in each case might be unnecessary as it cannot fall through multiple cases
-  std::cerr << "SectionHandler received: " << line << std::endl;
-  std::cerr << "Actual Section: " << ActualSection << std::endl;
+  // std::cerr << "SectionHandler received: " << line << std::endl;
+  // std::cerr << "Actual Section: " << ActualSection << std::endl;
   switch (ActualSection) {
     case Name:
       if (const auto result = extractName(line); result.has_value()) {
@@ -147,18 +147,18 @@ bool Parser::SectionHandler(const std::string &line,
 
 std::optional<std::tuple<std::string, std::string>> Parser::parseState(
     const std::string &line) const {
-  std::cerr << "Received line: " << line << std::endl;
+  // std::cerr << "Received line: " << line << std::endl;
   const auto trimmed = Utils::Trim(line);
   std::string name, code;
-  const auto res = Utils::FindAll(trimmed, '[', ']');
-  std::cout << std::boolalpha << res << std::endl;
+  // const auto res = Utils::FindAll(trimmed, '[', ']');
+  // std::cout << trimmed << " " << std::boolalpha << res << std::endl;
 
-  if (!res) {
-    // Failsafe in case of brackets being on different lines
-    std::cerr << absl::StrFormat(
-        "Missing opening/closing bracket for state definition\n", trimmed);
-    return NOTHING;
-  }
+  // if (!res) {
+  //   // Failsafe in case of brackets being on different lines
+  //   std::cerr << absl::StrFormat(
+  //       "Missing opening/closing bracket for state definition\n", trimmed);
+  //   return NOTHING;
+  // }
   if (!RE2::FullMatch(trimmed, *states_pattern_, &name, &code)) {
     // LOG(WARNING) << "Didn't find match" << std::endl;
     //TODO replace with something else
