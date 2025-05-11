@@ -1,16 +1,65 @@
 cmake_minimum_required(VERSION 3.11)
+include(FetchContent)
 
-
-set(CMAKE_TOOLCHAIN_FILE ${CMAKE_SOURCE_DIR}/vcpkg/scripts/buildsystems/vcpkg.cmake CACHE STRING "Vcpkg toolchain file")
+# set(CMAKE_TOOLCHAIN_FILE ${CMAKE_SOURCE_DIR}/vcpkg/scripts/buildsystems/vcpkg.cmake CACHE STRING "Vcpkg toolchain file")
+set(VCPKG_ROOT ${CMAKE_SOURCE_DIR}/vcpkg)
+set(VCPKG_SCRIPT_DIR ${VCPKG_ROOT}/scripts/buildsystems)
+set(VCPKG_TOOLCHAIN_FILE ${VCPKG_SCRIPT_DIR}/vcpkg.cmake)
 set(CMAKE_TRY_COMPILE_TARGET_TYPE STATIC_LIBRARY)
+
+
+if (NOT EXISTS ${VCPKG_ROOT})
+    message("Vcpkg directory not found at ${VCPKG_ROOT}. Cloning vcpkg...")
+    FetchContent_Declare(
+            vcpkg_repo
+            GIT_REPOSITORY https://github.com/microsoft/vcpkg.git
+            GIT_TAG master
+            SOURCE_DIR "${VCPKG_ROOT}"
+            GIT_SHALLOW TRUE
+    )
+    FetchContent_GetProperties(vcpkg_repo)  # Isn't MakeAvailable better?
+    if (NOT vcpkg_repo_POPULATED)
+        FetchContent_Populate(vcpkg_repo)
+        message(STATUS "vcpkg repository cloned to ${VCPKG_ROOT}")
+    else ()
+        message(STATUS "vcpkg repository already populated at ${VCPKG_ROOT}")
+    endif ()
+
+    if (WIN32)
+        set(VCPKG_BOOTSTRAP_SCRIPT "${VCPKG_ROOT}/bootstrap-vcpkg.bat")
+    else ()
+        set(VCPKG_BOOTSTRAP_SCRIPT "${VCPKG_ROOT}/bootstrap-vcpkg.sh")
+    endif ()
+
+    message(STATUS "Bootstrapping vcpkg by running ${VCPKG_BOOTSTRAP_SCRIPT}")
+    execute_process(
+            COMMAND "${VCPKG_BOOTSTRAP_SCRIPT}" -disableMetrics
+            WORKING_DIRECTORY "${VCPKG_ROOT}"
+            RESULT_VARIABLE bootstrap_result
+            OUTPUT_VARIABLE bootstrap_output
+            ERROR_VARIABLE bootstrap_error
+    )
+    if (NOT bootstrap_result EQUAL 0)
+        message(FATAL_ERROR "vcpkg bootstrapping failed!\nOutput:\n${bootstrap_output}\nError:\n${bootstrap_error}")
+    else ()
+        message(STATUS "vcpkg bootstrapped successfully.")
+    endif ()
+else ()
+    message(STATUS "vcpkg directory found at ${VCPKG_ROOT}")
+endif ()
+
+if (EXISTS ${VCPKG_TOOLCHAIN_FILE})
+    set(CMAKE_TOOLCHAIN_FILE ${VCPKG_TOOLCHAIN_FILE} CACHE FILEPATH "Vcpkg toolchain file")
+else ()
+    message(WARNING "vcpkg toolchain file not found at ${VCPKG_TOOLCHAIN_FILE} even after attempting setup. Dependencies won't work correctly.")
+endif ()
 
 project(fsm VERSION 0.1 LANGUAGES CXX)
 
-include(FetchContent)
-set(CMAKE_CXX_STANDARD 17)
+
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
 set(CMAKE_CXX_EXTENSIONS OFF)
-unset(ENV{VCPKG_ROOT} )
+unset(ENV{VCPKG_ROOT})
 
 
 
@@ -62,7 +111,7 @@ add_executable(fsm
         fsm/types/transitions.cpp
         fsm/types/variables.cpp
         fsm/types/states.cpp
-#        fsm/Timing.cpp
+        #        fsm/Timing.cpp
         #        fsm/Interpret.cpp
 )
 
@@ -90,7 +139,7 @@ add_executable(fsm
 #add_subdirectory(./libs/range-v3)
 
 target_link_libraries(fsm PRIVATE
-#        reproc++
+        #        reproc++
         range-v3::range-v3
         re2::re2
         fast_float
@@ -98,8 +147,8 @@ target_link_libraries(fsm PRIVATE
         absl::container_common
         absl::log
         absl::log_initialize
-#        rxcpp
-##        libzmq-static
-##        cppzmq-static
+        #        rxcpp
+        ##        libzmq-static
+        ##        cppzmq-static
 )
 

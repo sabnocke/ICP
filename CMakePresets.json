@@ -44,6 +44,15 @@
       }
     },
     {
+      "name": "linux",
+      "hidden": true,
+      "condition": {
+        "type": "equals",
+        "lhs": "${hostSystemName}",
+        "rhs": "Linux"
+      }
+    },
+    {
       "name": "windows-msvc-ninja-debug",
       "hidden": false,
       "inherits": [
@@ -99,6 +108,17 @@
         "CMAKE_CXX_COMPILER": "g++",
         "VCPKG_TARGET_TRIPLET": "x64-mingw-static"
       }
+    },
+    {
+      "name": "linux-gcc-debug",
+      "inherits": ["linux", "debug"],
+      "generator": "Ninja",
+      "binaryDir": "${sourceDir}/build/${presetName}",
+      "cacheVariables": {
+        "CMAKE_C_COMPILER": "gcc",
+        "CMAKE_CXX_COMPILER": "g++",
+        "VCPKG_TARGET_TRIPLET": "x64-linux"
+      }
     }
   ],
   "buildPresets": [
@@ -127,6 +147,16 @@
       "displayName": "Build (Debug Windows UCRT)",
       "configurePreset": "windows-ucrt-debug",
       "description": "Builds the Debug configuration for Windows with UCRT.",
+      "jobs": 8,
+      "targets": [
+        "fsm"
+      ]
+    },
+    {
+      "name": "build-linux-gcc-debug",
+      "displayName": "Build (Debug Linux GCC)",
+      "configurePreset": "linux-gcc-debug",
+      "description": "Builds the Debug configuration for Linux with GCC",
       "jobs": 8,
       "targets": [
         "fsm"
