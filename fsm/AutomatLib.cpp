@@ -1,18 +1,9 @@
 #include "AutomatLib.h"
 
-#include <absl/strings/match.h>
-
 #include <fstream>
-#include <optional>
-#include <ostream>
 #include <string>
 #include <utility>
 #include <vector>
-
-#include "../vcpkg/buildtrees/abseil/src/20250127.1-a0a219bf72.clean/absl/strings/match.h"
-#include "ParserLib.h"
-#include "Utils.h"
-#include "range/v3/view/map.hpp"
 #include "types/all_types.h"
 
 

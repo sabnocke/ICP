@@ -53,7 +53,7 @@ Interpret::Interpret(AutomatLib::Automat& automat) {
   inputs = automat.inputs;
   outputs = automat.outputs;
   sol::state lua = std::move(automat.lua);
-  lua.open_libraries(sol::lib::base);
+  // lua.open_libraries(sol::lib::base);
 }
 
 void Interpret::ChangeState(const TransitionGroup& tg) {
@@ -121,6 +121,7 @@ void Interpret::PrepareTransitions() {
   TransitionGroup ntg;
   for (auto& transition : transitionGroup) {
     auto ntr = Transition(transition);
+    if (transition.cond.empty()) continue;
     ntr.cond = absl::StrFormat("function o() return %s end; o()", transition.cond);
     ntg.Add(ntr);
   }
@@ -155,7 +156,7 @@ bool StringToBool(const std::string& str) {
 }
 
 int Interpret::Execute(bool once = false) {
-  // lua.open_libraries(sol::lib::base);
+  lua.open_libraries(sol::lib::base);
   try {
     while (true && !once) {
       // First find all reachable transitions
