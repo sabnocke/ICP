@@ -1,19 +1,12 @@
 
-// #include <absl/log/check.h>
 #include <absl/strings/str_format.h>
-//
-// #include <cassert>
-// #include <chrono>
 #include <iostream>
-//
-// #include "AutomatLib.h"
+#include <fstream>
 #include "ParserLib.h"
-// #include "Timing.h"
-// #include "absl/log/absl_check.h"
-// #include "external/sol.hpp"
-// #include "lua.hpp"
-// #include "types/all_types.h"
-//
+#include "Timing.h"
+#include "external/sol.hpp"
+
+
 void parserTest() {
   ParserLib::Parser parser;
   if (auto res = parser.parseState("IDLE : [ output(\"out\", 0) ]");
@@ -48,31 +41,28 @@ void parserTest() {
 //   std::cout << r.transitions << std::endl;
 // }
 //
-// void luaTest() {
-//   sol::state lua{};
-//   int x = 0;
-//   lua.set_function("beep", [&]() { ++x; });
-//   lua.script("beep()");
-//   assert(x == 1);
-//   std::cout << x << std::endl;
-// }
-//
-// void timerTest() {
-//   // Through testing, I found out that there needs to be at least 15ms space between two timers,
-//   // otherwise they mess with each other and Start() doesn't return anything.
-//   auto t1 = types::Transition("1", "2", "", "", "");
-//   auto t2 = types::Transition("1", "3", "", "", "");
-//   Timing::Timer timer;
-//   timer.RegisterTimer(0, t1, std::chrono::milliseconds(100));
-//   timer.RegisterTimer(1, t2, std::chrono::milliseconds(85));
-//
-//   if (auto result = timer.Start(); result.has_value()) {
-//     std::cout << result.value() << std::endl;
-//   }
-//   std::cout << "The end" << std::endl;
-// }
+void luaTest() {
+  sol::state lua{};
+  int x = 0;
+  lua.set_function("beep", [&]() { ++x; });
+  lua.script("beep()");
+  assert(x == 1);
+  std::cout << x << std::endl;
+}
 
-int main() {
-  parserTest();
+int main(int argc, char** argv) {
+  if (argc != 2) {
+    std::cerr << "Requires path to valid fsm definition" << std::endl;
+  }
+  auto parser = ParserLib::Parser();
+  auto automat = parser.parseAutomat(argv[1]);
+  automat.PrepareUtilsFunctions();
+  automat.PrepareStateActions();
+  automat.PrepareVariables();
+  automat.PrepareSignals();
+  automat.LinkDelays();
+
+  std::cout << automat.transitions << std::endl;
+
   return 0;
 }
