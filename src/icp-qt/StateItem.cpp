@@ -1,3 +1,10 @@
+/**
+ * @file StateItem.cpp
+ * @brief Implements the visual and interactive behavior of a state node in the FSM editor, including label editing, movement, highlighting, and initial state marking. Integrates with transitions and the FSM scene logic for graphical updates and events handling. 
+ * @author Denis Milistenfer <xmilis00@stud.fit.vutbr.cz>
+ * @date 11.05.2025
+ */
+
 #include "StateItem.h"
 #include "TransitionItem.h"
 #include "GraphicsScene.h"
@@ -52,6 +59,15 @@ QString StateItem::getName() const {
 void StateItem::setSelectedVisual(bool selected) {
   QColor customBlue("#2196f3");
   setPen(QPen(selected ? customBlue : Qt::black, 3));
+}
+
+// Highlights the state as currently active (used during runtime)
+void StateItem::setHighlighted(bool highlight) {
+  if (highlight) {
+    setBrush(QColor("#ffc107"));
+  } else {
+    setBrush(Qt::white);
+  }
 }
 
 // Add a transition to the list of attached transitions
@@ -163,4 +179,9 @@ void StateItem::contextMenuEvent(QGraphicsSceneContextMenuEvent* event) {
 // Returns a set of all transitions connected to this state
 const QSet<TransitionItem*>& StateItem::getAttachedTransitions() const {
   return attachedTransitions;
+}
+
+// Removes a specific transition from the set of attached transitions
+void StateItem::removeTransition(TransitionItem* t) {
+  attachedTransitions.remove(t);
 }

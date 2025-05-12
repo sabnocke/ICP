@@ -1,3 +1,10 @@
+/**
+ * @file GraphicsScene.cpp
+ * @brief Implements the interactive scene logic for the FSM editor, including mouse handling for creating, editing, and deleting states and transitions in a QGraphicsScene environment. Handles visual logic for state interactions and user events from the canvas area of the application.
+ * @author Denis Milistenfer <xmilis00@stud.fit.vutbr.cz>
+ * @date 11.05.2025
+ */
+
 #include "GraphicsScene.h"
 #include "TransitionItem.h"
 #include <QGraphicsSceneMouseEvent>
@@ -17,17 +24,23 @@ void GraphicsScene::setMode(EditorMode mode) {
 }
 
 // Main mouse event handler
-// Depending on current mode, creates new state or starts/completes a transition
+// Depending on current mode, creates new state or starts/completes a transition or deletes them
 void GraphicsScene::mousePressEvent(QGraphicsSceneMouseEvent* event) {
   switch (currentMode) {
-    case EditorMode::AddState:
+    case EditorMode::AddState: {
       createStateAt(event->scenePos());
       break;
+    }
 
     case EditorMode::AddTransition: {
       auto* item = itemAt(event->scenePos(), QTransform());
       auto* state = qgraphicsitem_cast<StateItem*>(item);
       if (state) handleTransitionClick(state);
+      break;
+    }
+
+    case EditorMode::Delete: {
+      handleDeleteClick(event->scenePos());
       break;
     }
 
@@ -155,4 +168,71 @@ StateItem* GraphicsScene::findStateByName(const QString& name) {
     }
   }
   return nullptr;
+}
+
+// Handles deletion of a state or transition based on click position
+void GraphicsScene::handleDeleteClick(const QPointF& pos) {
+  QGraphicsItem* item = itemAt(pos, QTransform());
+
+  // If its a transition, remove it directly
+  if (auto* transition = dynamic_cast<TransitionItem*>(item)) {
+    // Detach from states
+    if (auto* from = transition->getFromState())
+      from->removeTransition(transition);
+    if (auto* to = transition->getToState())
+      to->removeTransition(transition);
+
+    removeItem(transition);
+    delete transition;
+    return;
+  }
+
+  // If its a state, remove it and all attached transitions also
+  if (auto* state = dynamic_cast<StateItem*>(item)) {
+    QSet<TransitionItem*> transitions = state->getAttachedTransitions();
+    for (TransitionItem* t : transitions) {
+      if (auto* from = t->getFromState())
+        from->removeTransition(t);
+      if (auto* to = t->getToState())
+        to->removeTransition(t);
+
+      removeItem(t);
+      delete t;
+    }
+
+    // Notify MainWindow to remove action row
+    emit stateDeleted(state->getName());
+    removeItem(state);
+    delete state;
+    return;
+  }
+}
+
+// Clears the scene of all items (states and transitions)
+// Resets the initial state reference as well
+void GraphicsScene::clearScene() {
+  for (auto* item : items())
+    removeItem(item);
+  clear(); // Remove all items from the scene
+  initialState = nullptr; // Reset initial state
+}
+
+// Creates a new transition between two states by references
+// Adds the transition to both states and updates its position in the scene
+TransitionItem* GraphicsScene::createTransitionByNames(StateItem* from, StateItem* to) {
+  auto* transition = new TransitionItem(from, to);
+  from->addTransition(transition);
+  to->addTransition(transition);
+  addItem(transition);  // Add transition line to scene
+  transition->updatePosition(); // Recalculate its position based on current state positions
+  return transition;
+}
+
+// Creates and adds a named state at a given position
+// Used primarily during import or model restoration
+StateItem* GraphicsScene::createState(const QPointF& pos, const QString& name) {
+  auto* state = new StateItem(name); // Create new state with given name
+  state->setPos(pos);  // Set its position on the canvas
+  addItem(state);  // Add to scene
+  return state;
 }

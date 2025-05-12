@@ -1,7 +1,9 @@
 #pragma once
-#include <vector>
-#include <string>
 #include <range/v3/view.hpp>
+#include <string>
+#include <vector>
+
+#include "absl/strings/str_format.h"
 
 namespace types {
 struct State {
@@ -14,6 +16,10 @@ struct State {
   bool operator!=(const State &state) const { return !(*this == state); }
   bool operator<(const State &state) const {
     return Name < state.Name && Action < state.Action;
+  }
+  friend std::ostream &operator<<(std::ostream &os, const State &state) {
+    os << absl::StrFormat("State: Name: %s; Action: %s", state.Name, state.Action);
+    return os;
   }
 };
 
@@ -36,12 +42,18 @@ public:
     auto it = states | ranges::views::transform([](const State& state){return std::make_pair(state.Name, state.Action);});
     return it | ranges::to<std::vector<std::pair<std::string, std::string>>>;
   }
-  State First() {
+  [[nodiscard]] State First() const {
     if (states.empty()) {
       return {};
     }
     return states.front();
   }
+
+  StateGroup Find(std::string name) const {
+    auto it = states | ranges::views::filter([name](const State& state) {return state.Name == name;});
+    return StateGroup(it | ranges::to<std::vector<State>>());
+  }
+
   StateGroup Rest() {
     if (states.empty()) {
       return {};
@@ -50,14 +62,27 @@ public:
 
     return StateGroup{std::move(s)};
   }
+  [[nodiscard]] size_t Size() const {
+    return states.size();
+  }
   StateGroup Add(const State &state) {
     states.emplace_back(state);
     return *this;
   }
 
-  StateGroup &operator+=(const State &state) {
+  StateGroup &operator<<(const State &state) {
     states.emplace_back(state);
     return *this;
   }
+
+  friend std::ostream& operator<<(std::ostream& os, const StateGroup &state) {
+    for (const State &s : state.states) {
+      os << s << std::endl;
+    }
+    return os;
+  }
+  [[nodiscard]] auto begin() const  { return states.begin(); }
+  [[nodiscard]] auto end() const  { return states.end(); }
+  [[nodiscard]] auto empty() const { return states.empty(); }
 };
 }

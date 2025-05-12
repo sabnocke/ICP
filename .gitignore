@@ -45,3 +45,5 @@ build/
 libs/
 
 cmake-build-debug-visual-studio/
+
+vcpkg

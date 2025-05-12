@@ -1,3 +1,10 @@
+/**
+ * @file AutomatModel.cpp
+ * @brief Implements the logic for collecting FSM data from the GUI and exporting it into a parser-compatible format.
+ * @author Denis Milistenfer <xmilis00@stud.fit.vutbr.cz>
+ * @date 11.05.2025
+ */
+
 #include "AutomatModel.h"
 #include "mainwindow.h"
 #include "ui_mainwindow.h"
@@ -105,8 +112,10 @@ bool AutomatModel::exportInfo(const QString& filename) const {
   // Ensure the initial state is listed first (if exists)
   if (!initialStateName.isEmpty() && names.removeOne(initialStateName))
     names.prepend(initialStateName);
-  for (auto& s : names)
-    out << s << " : {" << stateActions[s] << "}\n";
+
+  for (const QString& s : names) {
+    out << "state " << s << " [" << stateActions.value(s).trimmed() << "]\n";
+  }
   out << "\n";
 
   // Transitions

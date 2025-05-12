@@ -1,3 +1,10 @@
+/**
+ * @file main.cpp
+ * @brief Entry point of the FSM editor application. Initializes the Qt application and displays the main window interface for user interaction with the FSM canvas and controls.
+ * @author Denis Milistenfer <xmilis00@stud.fit.vutbr.cz>
+ * @date 11.05.2025
+ */
+
 #include "mainwindow.h"
 #include <QApplication>
 

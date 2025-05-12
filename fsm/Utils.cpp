@@ -1,13 +1,10 @@
 #include "Utils.h"
 
-#include <locale>
+#include <fast_float/fast_float.h>
 
-#include "absl/strings/ascii.h"
-#include "absl/strings/match.h"
-#include "range/v3/algorithm/find_if.hpp"
-#include "range/v3/range/conversion.hpp"
-#include "range/v3/view.hpp"
 #include <iomanip>
+#include <locale>
+#include <range/v3/all.hpp>
 #include <sstream>
 
 namespace Utils {
@@ -45,7 +42,6 @@ std::string_view Trim(const std::string_view str) {
   const auto count = ranges::distance(first, last.base());
 
   return str.substr(start, count);
-  // return {first, last.base()};
 }
 
 std::string Remove(const std::string &str, const char c) {
@@ -65,17 +61,24 @@ std::string Remove(const std::string &str, const std::string &substr) {
 
 std::string ToLower(const std::string &str) {
   auto view = str | ranges::views::transform(
-                        [](auto c) { return absl::ascii_tolower(c); });
+                        [](auto c) { return std::tolower(c); });
   return view | ranges::to<std::string>();
 }
 std::string ToLower(const std::string_view str) {
   return ToLower(std::string(str));
 }
+char ToLower(const char c) { return std::tolower(c); }
 
 bool Contains(const std::string &str, const std::string_view view) {
   const auto lower = ToLower(str);
-  const auto lower_s = ToLower(view);
-  return absl::StrContains(lower, lower_s);
+  if (const auto lower_s = ToLower(view);
+      lower.find(lower_s) == std::string::npos)
+    return false;
+  return true;
+}
+
+bool Contains(const std::string &str, const char c) {
+  return ToLower(str).find(c) != std::string::npos;
 }
 
 std::vector<std::string> Split(const std::string &str, const char delim) {
@@ -95,5 +98,29 @@ std::string Quote(const std::string &str) {
   return ss.str();
 }
 
+std::optional<long long> AttemptIntegerConversion(const std::string &input) {
+  const auto first = input.data();
+  const auto last = input.data() + input.size();
+  long long value;
+
+  if (auto [ptr, ec] = fast_float::from_chars(first, last, value);
+      ec != std::errc() || ptr != last) {
+    return std::nullopt;
+  }
+
+  return value;
+}
+std::optional<double> AttemptDoubleConversion(const std::string &input) {
+  const auto first = input.data();
+  const auto last = input.data() + input.size();
+  double value;
+
+  if (auto [ptr, ec] = fast_float::from_chars(first, last, value);
+      ec != std::errc{} || ptr != last) {
+    return std::nullopt;
+  }
+
+  return value;
+}
 
 }  // namespace Utils

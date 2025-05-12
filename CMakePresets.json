@@ -1,0 +1,172 @@
+{
+  "version": 3,
+  "cmakeMinimumRequired": {
+    "major": 3,
+    "minor": 8,
+    "patch": 0
+  },
+  "configurePresets": [
+    {
+      "name": "generator-ninja-multi",
+      "hidden": true,
+      "generator": "Ninja Multi-Config",
+      "architecture": {
+        "value": "x64",
+        "strategy": "external"
+      }
+    },
+    {
+      "name": "base",
+      "hidden": true,
+      "binaryDir": "${sourceDir}/build/${presetName}",
+      "cacheVariables": {
+        "CMAKE_CXX_STANDARD": "17",
+        "CMAKE_TOOLCHAIN_FILE": {
+          "type": "FILEPATH",
+          "value": "${sourceDir}/vcpkg/scripts/buildsystems/vcpkg.cmake"
+        }
+      }
+    },
+    {
+      "name": "debug",
+      "hidden": true,
+      "cacheVariables": {
+        "CMAKE_BUILD_TYPE": "DEBUG"
+      }
+    },
+    {
+      "name": "windows",
+      "hidden": true,
+      "cacheVariables": {
+        "VCPKG_CONFIGURATION_HOSTNAME": "x64-windows"
+      },
+      "condition": {
+        "type": "equals",
+        "lhs": "${hostSystemName}",
+        "rhs": "Windows"
+      }
+    },
+    {
+      "name": "linux",
+      "hidden": true,
+      "cacheVariables": {
+        "VCPKG_CONFIGURATION_HOSTNAME": "x64-linux"
+      },
+      "condition": {
+        "type": "equals",
+        "lhs": "${hostSystemName}",
+        "rhs": "Linux"
+      }
+    },
+    {
+      "name": "windows-msvc-ninja-debug",
+      "hidden": false,
+      "inherits": [
+        "base",
+        "debug",
+        "windows"
+      ],
+      "generator": "Ninja",
+      "cacheVariables": {
+        "CMAKE_C_COMPILER": {
+          "type": "FILEPATH",
+          "value": "$env{MSVC_ROOT}/cl.exe"
+        },
+        "CMAKE_CXX_COMPILER": "$env{MSVC_ROOT}/cl.exe",
+        "CMAKE_C_LINK_EXECUTABLE": "$env{MSVC_ROOT}/link.exe",
+        "CMAKE_CXX_LINK_EXECUTABLE": "$env{MSVC_ROOT}/link.exe",
+        "CMAKE_RC_COMPILER": "$env{MSVC_ROOT}/rc.exe",
+        "CMAKE_MT": "$env{MSVC_ROOT}/mt.exe",
+        "VCPKG_TARGET_TRIPLET": "x64-windows"
+      },
+      "environment": {
+        "MSVC_ROOT": "C:/Program Files/Microsoft Visual Studio/2022/Community/VC/Tools/MSVC/14.43.34808/bin/Hostx64/x64"
+      },
+      "toolset": {
+        "value": "v143,version=14.34,host=x64",
+        "strategy": "external"
+      }
+    },
+    {
+      "name": "windows-mingw-ninja-debug",
+      "displayName": "Toolchain for windows MINGW64",
+      "cmakeExecutable": "C:/msys64/ucrt64/bin/cmake.exe",
+      "inherits": [
+        "base",
+        "debug",
+        "windows"
+      ],
+      "cacheVariables": {
+        "CMAKE_MAKE_PROGRAM": "C:/msys64/ucrt64/bin/mingw32-make.exe",
+        "CMAKE_C_COMPILER": "gcc",
+        "CMAKE_CXX_COMPILER": "g++",
+        "VCPKG_TARGET_TRIPLET": "x64-mingw-static"
+      },
+      "generator": "MSYS Makefiles"
+    },
+    {
+      "name": "windows-ucrt-debug",
+      "generator": "Ninja",
+      "binaryDir": "${sourceDir}/build/${presetName}",
+      "cacheVariables": {
+        "CMAKE_CXX_STANDARD": "17",
+        "CMAKE_C_COMPILER": "gcc",
+        "CMAKE_CXX_COMPILER": "g++",
+        "VCPKG_TARGET_TRIPLET": "x64-mingw-static"
+      }
+    },
+    {
+      "name": "linux-gcc-debug",
+      "inherits": ["linux", "debug"],
+      "generator": "Ninja",
+      "binaryDir": "${sourceDir}/build/${presetName}",
+      "cacheVariables": {
+        "CMAKE_C_COMPILER": "gcc",
+        "CMAKE_CXX_COMPILER": "g++",
+        "VCPKG_TARGET_TRIPLET": "x64-linux"
+      }
+    }
+  ],
+  "buildPresets": [
+    {
+      "name": "build-windows-mingw-debug",
+      "displayName": "Build (Debug Windows MinGW)",
+      "configurePreset": "windows-mingw-ninja-debug",
+      "description": "Builds the Debug configuration for Windows with MinGW.",
+      "jobs": 0,
+      "targets": [
+        "all"
+      ]
+    },
+    {
+      "name": "build-windows-msvc-debug",
+      "displayName": "Build (Debug Windows MSVC)",
+      "configurePreset": "windows-msvc-ninja-debug",
+      "description": "Builds the Debug configuration for Windows with MSVC.",
+      "jobs": 0,
+      "targets": [
+        "all"
+      ]
+    },
+    {
+      "name": "build-windows-ucrt-debug",
+      "displayName": "Build (Debug Windows UCRT)",
+      "configurePreset": "windows-ucrt-debug",
+      "description": "Builds the Debug configuration for Windows with UCRT.",
+      "jobs": 8,
+      "targets": [
+        "fsm"
+      ]
+    },
+    {
+      "name": "build-linux-gcc-debug",
+      "displayName": "Build (Debug Linux GCC)",
+      "configurePreset": "linux-gcc-debug",
+      "description": "Builds the Debug configuration for Linux with GCC",
+      "jobs": 8,
+      "targets": [
+        "fsm"
+      ]
+    }
+  ]
+}

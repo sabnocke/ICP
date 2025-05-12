@@ -20,17 +20,17 @@ namespace ParserLib {
 Parser::Parser() {
   RE2::Options options;
   options.set_case_sensitive(false);
-  name_pattern_ = std::make_unique<RE2>(R"(^.*?:\s*?(?<c>.*)$)", options);
+  name_pattern_ = std::make_unique<RE2>(R"(^\s*Name\s*:\s*(?<c>.*)$)", options);
   comment_pattern_ = std::make_unique<RE2>(R"(^.*?:\s*?(?<c>.*)$)", options);
   variables_pattern_ = std::make_unique<RE2>(
       R"((?<type>\w+) (?<name>\w+) = (?<value>\w+))", options);
   states_pattern_ =
-      std::make_unique<RE2>(R"((?<name>\w+) *: *\{(?<code>.+)\})", options);
+      std::make_unique<RE2>(R"(state (?<name>\w+) *\[(?<code>.*)\])", options);
   transitions_pattern_ = std::make_unique<RE2>(
       R"(^\s*(?<from>\w+)\s*-->\s*(?<to>\w+)\s*:\s*(?:(?<input>\w*)?\s*(?<cond>\[.*\])?\s*@?\s*(\w*)?)$)",
       options);
-  input_pattern_ = std::make_unique<RE2>(R"(^.*?:\s*(?<name>\w*)$)", options);
-  output_pattern_ = std::make_unique<RE2>(R"(^.*?:\s*(?<name>\w*)$)", options);
+  input_pattern_ = std::make_unique<RE2>(R"(^.*?:?\s*(?<name>\w*)$)", options);
+  output_pattern_ = std::make_unique<RE2>(R"(^.*?:?\s*(?<name>\w*)$)", options);
 
   if (!name_pattern_->ok() || !comment_pattern_->ok() ||
       !variables_pattern_->ok() || !states_pattern_->ok() ||
@@ -50,11 +50,9 @@ AutomatLib::Automat Parser::parseAutomat(const std::string &file) {
   }
   std::string line;
 
-  // TODO what if there isn't linefeed between section name and its content
-  // TODO leave comments alone + allow multiple of them
-  // string_view is unusable because of lifetime issues
+
   while (std::getline(ifs, line)) {
-    std::cout << line << std::endl;
+    std::cout << line << std::endl;                     //* <-- line printing <--
     if (line.empty())
       continue;
 
@@ -63,9 +61,8 @@ AutomatLib::Automat Parser::parseAutomat(const std::string &file) {
       SectionHandler(line, automat);  // In case of: Name: name
       continue;
     }
-    if (Utils::Contains(line, "Comment")) {
-      ActualSection = Comment;
-      SectionHandler(line, automat);  // In case of: Comment: comment
+    if (Utils::Contains(line, '#')) {
+      // Comments are ignored
       continue;
     }
     if (Utils::Contains(line, "Variable")) {
@@ -74,6 +71,8 @@ AutomatLib::Automat Parser::parseAutomat(const std::string &file) {
     }
     if (Utils::Contains(line, "State")) {
       ActualSection = States;
+      std::cerr << "Parsing states" << std::endl;
+      SectionHandler(line, automat);
       continue;
     }
     if (Utils::Contains(line, "Transition")) {
@@ -98,6 +97,8 @@ AutomatLib::Automat Parser::parseAutomat(const std::string &file) {
 bool Parser::SectionHandler(const std::string &line,
                             AutomatLib::Automat &automat) const {
   //? return false in each case might be unnecessary as it cannot fall through multiple cases
+  // std::cerr << "SectionHandler received: " << line << std::endl;
+  // std::cerr << "Actual Section: " << ActualSection << std::endl;
   switch (ActualSection) {
     case Name:
       if (const auto result = extractName(line); result.has_value()) {
@@ -106,12 +107,9 @@ bool Parser::SectionHandler(const std::string &line,
       }
       return false;
     case Comment:
-      if (const auto result = extractComment(line); result.has_value()) {
-        automat.Comment = result.value();
-        return true;
-      }
-      return false;
+      return true;
     case States: {
+
       if (const auto result = parseState(line); result.has_value()) {
         automat.addState(result.value());
         return true;
@@ -149,31 +147,26 @@ bool Parser::SectionHandler(const std::string &line,
 
 std::optional<std::tuple<std::string, std::string>> Parser::parseState(
     const std::string &line) const {
+  // std::cerr << "Received line: " << line << std::endl;
   const auto trimmed = Utils::Trim(line);
   std::string name, code;
-  const auto res = Utils::FindAll(trimmed, '{', '}');
-  std::cout << std::boolalpha << res << std::endl;
+  // const auto res = Utils::FindAll(trimmed, '[', ']');
+  // std::cout << trimmed << " " << std::boolalpha << res << std::endl;
 
-  if (!res) {
-    // Failsafe in case of brackets being on different lines
-    std::cerr << absl::StrFormat(
-        "Expected regular expression '{.*}' to find match with '%s'\n",
-        trimmed);
-    return NOTHING;
-  }
+  // if (!res) {
+  //   // Failsafe in case of brackets being on different lines
+  //   std::cerr << absl::StrFormat(
+  //       "Missing opening/closing bracket for state definition\n", trimmed);
+  //   return NOTHING;
+  // }
   if (!RE2::FullMatch(trimmed, *states_pattern_, &name, &code)) {
     // LOG(WARNING) << "Didn't find match" << std::endl;
     //TODO replace with something else
     return NOTHING;
   }
-  return std::make_tuple(name, code);
+  return std::make_tuple(Utils::Trim(name), Utils::Trim(code));
 }
 
-/// Extracts name from line, expecting format of "Name:<name>" or
-/// "Name:\n<name>".
-/// The string should be purified prior to calling this function
-/// @param line Line from which name will be extracted
-/// @return String containing name, otherwise nothing
 std::optional<std::string> Parser::extractName(const std::string &line) const {
   std::string name;
 
@@ -204,17 +197,18 @@ std::optional<std::string> Parser::extractComment(
   return NOTHING;
 }
 
-std::optional<AutomatLib::Variable> Parser::parseVariable(
+std::optional<Variable> Parser::parseVariable(
     const std::string &line) const {
   const auto trimmed = Utils::Trim(line);
   std::string type, name, value;
   if (RE2::FullMatch(trimmed, *variables_pattern_, &type, &name, &value)) {
-    return AutomatLib::Variable{type, name, value};
+    return Variable{type, name, value};
   }
   return NOTHING;
 }
 
-std::optional<VariableRecord> parseVariablePlain(const std::string &line) {
+[[deprecated]] std::optional<VariableRecord> parseVariablePlain(
+    const std::string &line) {
   // expects format type name = value;
   auto split = Utils::Split(line, '=');
   if (split.empty() || split.size() != 2) {
@@ -232,14 +226,15 @@ std::optional<VariableRecord> parseVariablePlain(const std::string &line) {
   return res;
 }
 
-// TODO test this
-std::optional<TransitionRecord> Parser::parseTransition(
+std::optional<Transition> Parser::parseTransition(
     const std::string &line) const {
   std::string from, to, input, cond, delay;
 
   if (RE2::FullMatch(line, *transitions_pattern_, &from, &to, &input, &cond,
                      &delay)) {
-    return TransitionRecord{from, to, input, cond, delay};
+    auto cond2 = Utils::Remove(cond, '[');
+    auto cond3 = Utils::Remove(cond2, ']');
+    return Transition{from, to, input, Utils::Trim(cond3), delay};
   }
 
   return NOTHING;

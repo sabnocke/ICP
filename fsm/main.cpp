@@ -1,29 +1,71 @@
-#include <absl/log/initialize.h>
-#include <absl/log/log.h>
+
 #include <absl/strings/str_format.h>
 
+#include <cassert>
+#include <fstream>
 #include <iostream>
 
+#include "Interpret.h"
 #include "ParserLib.h"
-#include "absl/flags/flag.h"
+#include "external/sol.hpp"
 
-
-int main() {
-  absl::InitializeLog();
-
+void parserTest() {
   ParserLib::Parser parser;
-  if (auto res = parser.parseState("IDLE : { output(\"out\", 0) }"); res.has_value()) {
+  if (auto res = parser.parseState("IDLE : [ output(\"out\", 0) ]");
+      res.has_value()) {
     auto [name, cond] = res.value();
-    std::cout << absl::StrFormat("state %s has condition %s\n", name, cond);
+    std::cout << absl::StrFormat("state %s has action %s\n", name, cond);
   }
-  if (auto res = parser.parseVariable("    int timeout = 5000"); res.has_value()) {
+  if (auto res = parser.parseVariable("    int timeout = 5000");
+      res.has_value()) {
     std::cout << res.value() << std::endl;
   }
-  if (auto res = parser.parseTransition("    IDLE --> ACTIVE: in [ atoi(valueof(\"in\")) == 1 ]"); res.has_value()) {
+  if (auto res = parser.parseTransition(
+          "    IDLE --> ACTIVE: in [ atoi(valueof(\"in\")) == 1 ]");
+      res.has_value()) {
     std::cout << res.value() << std::endl;
   }
-  std::cout << Utils::Quote("IDLE : { output(\"out\", 0) }");
+  std::cout << Utils::Quote("IDLE : { output(\"out\", 0) }") << std::endl;
+
+  //? Get is necessary for getting the value if conv was directly printed it would output correctly 10
+  auto conv = Utils::StringToNumeric<int>("10");
+  if (auto c = conv; c.has_value()) {
+    std::cout << c.value() << std::endl;
+  }
+}
+//
+//   auto r = parser.parseAutomat("fsmDefinition.txt");
+//   std::cout << r.states.Size() << std::endl;
+//   std::cout << r.states << std::endl;
+//   std::cout << "IN: " << absl::StrJoin(r.inputs, ", ") << std::endl;
+//   std::cout << "OUT: " << absl::StrJoin(r.outputs, ", ") << std::endl;
+//   std::cout << r.variables << std::endl;
+//   std::cout << r.transitions << std::endl;
+// }
+//
+void luaTest() {
+  sol::state lua{};
+  int x = 0;
+  lua.set_function("beep", [&]() { ++x; });
+  lua.script("beep()");
+  assert(x == 1);
+  std::cout << x << std::endl;
+}
+
+int main(int argc, char** argv) {
+  if (argc != 2) {
+    std::cerr << "Requires path to valid fsm definition" << std::endl;
+    return 1;
+  }
+  sol::state lua{};
+  lua.open_libraries(sol::lib::base, sol::lib::package);
+  auto parser = ParserLib::Parser();
+  auto automat = parser.parseAutomat(argv[1]);
+  Interpreter::Interpret interpreter(automat);
+  interpreter.Prepare();
+  std::cout << automat.transitions << std::endl;
+  std::cout << interpreter.transitionGroup << std::endl;
+  // interpreter.Execute(false);
+  Interpreter::Interpret::simpleExample();
   return 0;
-
-
 }
