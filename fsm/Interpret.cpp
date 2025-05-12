@@ -8,9 +8,22 @@
 
 #include <thread>
 
+#include "Utils.h"
 #include "absl/log/absl_check.h"
 #include "absl/strings/match.h"
 #include "external/sol.hpp"
+
+//TODO change the transition (and potentially states) to functions, compile them ahead via lua.load(...)
+//TODO and store the as protected_functions in some friend container (TransitionGroup if remade with generics is good contender)
+//TODO same for state actions
+//TODO remove macros, they are C filth
+//TODO maybe try to split the Execute logic
+//TODO try to implement ability to watch multiple events (input, timer), try to figure out rxcpp (or something similar)
+//TODO remove the std::move for lua state, state will be build directly in interpreter
+//TODO do a more robust error detection and recovery
+//TODO ^ for all parts of project (automat, parser, interpreter)
+//TODO try implementing parsing for code blocks ([] on multiple lines); should be question of parsing
+//TODO fast_float could either be moved to vcpkg or entirely removed, depending on how replaceable it is with std::from_chars
 
 #define LUA_SCRIPT(out, code)           \
   try {                                 \
@@ -19,30 +32,24 @@
     std::cerr << e.what() << std::endl; \
   }
 
-#define TestAndSet(type, name, _value)                      \
-  do {                                                      \
-    auto n = Utils::StringToNumeric<type>(_value);          \
-    if (auto i = n.Get<type>(); i.has_value()) {            \
-      std::cout << "New value: " << i.value() << std::endl; \
-      lua[name] = i.value();                                \
-    }                                                       \
-  } while (0)
-
-#define TestAndSetValue(assign, type, _value)      \
-  do {                                             \
-    auto n = Utils::StringToNumeric<type>(_value); \
-    if (auto i = n.Get<type>(); i.has_value()) {   \
-      assign = i.value();                          \
-    }                                              \
-  } while (0)
-
 namespace Interpreter {
 void Interpret::simpleExample() {
   sol::state lua;
   int x = 0;
-  lua.set_function("beep", [&]() { ++x; });
-  lua.script("beep()");
-  ABSL_CHECK_EQ(x, 1);
+  if (const auto res = lua.safe_script("return 0 == 0"); res.valid()) {
+    std::cout << res.get<bool>() << std::endl;
+  }
+}
+
+template <typename T>
+std::optional<T> TestAndSetValue(const std::string& _value) {
+  if constexpr (std::is_same_v<T, std::string>) {
+    return _value;
+  }
+  if constexpr (Utils::detail::IsNumeric<T>) {
+    return Utils::StringToNumeric<T>(_value);
+  }
+  return std::nullopt;
 }
 
 Interpret::Interpret(AutomatLib::Automat& automat) {
@@ -53,7 +60,6 @@ Interpret::Interpret(AutomatLib::Automat& automat) {
   inputs = automat.inputs;
   outputs = automat.outputs;
   sol::state lua = std::move(automat.lua);
-  // lua.open_libraries(sol::lib::base);
 }
 
 void Interpret::ChangeState(const TransitionGroup& tg) {
@@ -79,14 +85,14 @@ void Interpret::LinkDelays() {
     auto mod = hasDelay.Where(
         [&](const Transition& tr) { return tr.delay == var.Name; });
     if (absl::EqualsIgnoreCase(var.Type, "int")) {
-      int val;
-      TestAndSetValue(val, int, var.Value);
-      mod.TransformAction([&](const Transition& tr) {
+      if (auto val = TestAndSetValue<int>(var.Value); val.has_value()) {
+        mod.TransformAction([&](const Transition& tr) {
         Transition ntr(tr);
-        ntr.delayInt = std::abs(val);
+        ntr.delayInt = std::abs(val.value());
         return ntr;
       });
       transitionGroup.Merge(mod);
+      }
     } else {
       //* There really isn't much of a reason to have to automat wait for more than int MAX_VALUE
       //* BTW, int MAX_VALUE = 2,147,483,647 => cca. 24 days
@@ -99,17 +105,21 @@ void Interpret::LinkDelays() {
 }
 
 void Interpret::PrepareVariables() {
-  //TODO requires lua/sol
   for (const auto& variable : variableGroup.Get()) {
     auto [Type, Name, Value] = variable.Tuple();
     std::cerr << "Variable: " << Type << " " << Name << std::endl;
+
     if (absl::EqualsIgnoreCase(Type, "int")) {
-      TestAndSet(int, Name, Value);
-    } /*else if (absl::EqualsIgnoreCase(Type, "float")) {
-      TestAndSet(float, Name, Value);
-    }*/
-    else if (absl::EqualsIgnoreCase(Type, "double")) {
-      TestAndSet(double, Name, Value);
+      if (auto val = TestAndSetValue<int>(Value); val.has_value())
+        lua[Name] = val.value();
+    } else if (absl::EqualsIgnoreCase(Type, "float")) {
+      if (auto val = TestAndSetValue<float>(Value); val.has_value())
+        lua[Name] = val.value();
+    } else if (absl::EqualsIgnoreCase(Type, "double")) {
+      if (auto val = TestAndSetValue<double>(Value); val.has_value())
+        lua[Name] = val.value();
+      else
+        lua[Name] = Value;
     } else if (absl::EqualsIgnoreCase(Type, "bool") ||
                absl::EqualsIgnoreCase(Type, "string")) {
       lua[Name] = Value;
@@ -121,8 +131,10 @@ void Interpret::PrepareTransitions() {
   TransitionGroup ntg;
   for (auto& transition : transitionGroup) {
     auto ntr = Transition(transition);
-    if (transition.cond.empty()) continue;
-    ntr.cond = absl::StrFormat("function o() return %s end; o()", transition.cond);
+    if (transition.cond.empty())
+      continue;
+    // ntr.cond = absl::StrFormat("return %s", transition.cond);
+
     ntg.Add(ntr);
   }
   transitionGroup = ntg;
@@ -172,23 +184,19 @@ int Interpret::Execute(bool once = false) {
       }
       auto transitionsCond = transitions.WhereCond();
 
-      std::stringstream ss;
-      std::streambuf* old = std::cout.rdbuf();
-
-      std::cout.rdbuf(ss.rdbuf());
-
       for (auto& transition : transitionsCond) {
         std::string cond = transition.cond;
         std::cout << cond << std::endl;
-        lua.script(cond);
+        if (auto result = lua.safe_script(cond); result.valid()) {
+          std::cout << result.get<std::string>() << std::endl;
+        }
       }
-      std::cout.rdbuf(old);
-      auto lua_out = StringToBool(ss.str());
+
       // Find all transitions that have valid condition, no timer and no event
-      if (auto r = transitionsCond.WhereNoTimer().WhereNoEvent(); lua_out && r.Some()) {
-        ChangeState(r);
-        continue;
-      }
+      // if (auto r = transitionsCond.WhereNoTimer().WhereNoEvent(); lua_out && r.Some()) {
+      //   ChangeState(r);
+      //   continue;
+      // }
       // Find all transitions that have condition, but no input
       if (auto r = transitionsCond.WhereNoEvent(); r.Some()) {
         // set timer for smallest delay transition

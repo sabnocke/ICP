@@ -26,19 +26,24 @@
 
 namespace types {
 struct TransitionGroup;
+template <typename T>
 struct Transition;
 using TGTMap = absl::node_hash_map<std::string, TransitionGroup>;
-using TGT = absl::btree_set<Transition>;
+using TGT = absl::btree_set<Transition<std::string>>;
 
 /**
  * @struct Transition
  * @brief Uchovává podrobnosti jednoho přechodu.
  */
+
+template <typename T>
 struct Transition {
+  using ContainedType = T;
+
   std::string from;
   std::string to;
   std::string input;
-  std::string cond;
+  T cond;
   std::string delay;
   int delayInt = 0;
 
@@ -106,25 +111,28 @@ struct Transition {
  * @struct TransitionGroup
  * @brief Kolekce přechodů s nástroji pro manipulaci.
  */
+template <typename T>
 struct TransitionGroup {
+  using SetType = TGT::value_type;
+  static_assert(std::is_same_v<T, SetType::ContainedType>,
+    "Type mismatch between TransitionGroup and underlying Transitions");
+
  private:
-  absl::btree_set<Transition> _transitions;
-  std::list<Transition> _tr;
-  std::vector<Transition> _tr2;
+  TGT _transitions;
   TGTMap _transition_groups;
 
  public:
   TransitionGroup() = default;
-  TransitionGroup operator+=(const Transition& tr) {
+  TransitionGroup operator+=(const Transition<T>& tr) {
     _transitions.insert(tr);
 
     return *this;
   }
-  TransitionGroup& operator<<(const Transition& tr) {
+  TransitionGroup& operator<<(const Transition<T>& tr) {
     _transitions.insert(tr);
     return *this;
   }
-  explicit TransitionGroup(absl::btree_set<Transition> transitions)
+  explicit TransitionGroup(absl::btree_set<Transition<T>> transitions)
       : _transitions(std::move(transitions)) {}
 
   size_t Count = 0;
@@ -138,14 +146,14 @@ struct TransitionGroup {
     return tg;
   }
 
-  void Add(const Transition& transition) { _transitions.insert(transition); }
+  void Add(const Transition<T>& transition) { _transitions.insert(transition); }
   void Add(const std::string& from, const std::string& to,
            const std::string& input, int delay) {
     _transitions.insert({from, to, input, delay});
   }
   TransitionGroup Cost(int cost) {
     auto it = _transitions |
-              ranges::views::filter([cost](const Transition& transition) {
+              ranges::views::filter([cost](const Transition<T>& transition) {
                 return GetCost(transition) == cost;
               });
     return TransitionGroup(it | ranges::to<decltype(_transitions)>);
@@ -158,7 +166,7 @@ struct TransitionGroup {
     }
     return total;
   }
-  static int GetCost(const Transition& transition) {
+  static int GetCost(const Transition<T>& transition) {
     auto [from, to, input, cond, delay] = transition.Tuple();
     const int total = (!cond.empty() ? 1 : 0) +   // Add 1 if cond is not empty
                       (!delay.empty() ? 2 : 0) +  // Add 2 if delay is not empty
@@ -173,7 +181,7 @@ struct TransitionGroup {
     _transition_groups = transitions;
     return transitions;
   }
-  [[nodiscard]] absl::btree_set<Transition> Get() const {
+  [[nodiscard]] absl::btree_set<Transition<T>> Get() const {
     return _transitions;
   };
   TransitionGroup Retrieve(const std::string& input) {
@@ -186,12 +194,12 @@ struct TransitionGroup {
     return Empty();
   }
 
-  TransitionGroup Transform(const std::function<Transition(Transition)>& fun) {
+  TransitionGroup Transform(const std::function<Transition(Transition<T>)>& fun) {
     auto it = _transitions | ranges::views::transform(fun);
-    const auto transitions = it | ranges::to<absl::btree_set<Transition>>;
+    const auto transitions = it | ranges::to<absl::btree_set<Transition<T>>>;
     return TransitionGroup(transitions);
   }
-  void TransformAction(const std::function<Transition(Transition)>& fun) {
+  void TransformAction(const std::function<Transition(Transition<T>)>& fun) {
     TGT n;
     for (auto& tr : _transitions) {
       n.insert(fun(tr));
@@ -199,7 +207,7 @@ struct TransitionGroup {
     _transitions = n;
   }
   [[nodiscard]] TransitionGroup Where(
-      const std::function<bool(Transition)>& pred) const {
+      const std::function<bool(Transition<T>)>& pred) const {
     auto it = _transitions | ranges::views::filter(pred);
     return TransitionGroup(it | ranges::to<decltype(_transitions)>);
   }
@@ -226,7 +234,7 @@ struct TransitionGroup {
       return tr.cond.empty() && tr.delay.empty() && tr.input.empty();
     });
   }
-  [[nodiscard]] std::optional<Transition> Smallest() const {
+  [[nodiscard]] std::optional<Transition<T>> Smallest() const {
     const auto min = WhereTimer().First();
     if (!min.has_value())
       return std::nullopt;
@@ -246,7 +254,7 @@ struct TransitionGroup {
         _transitions.insert(tr);
     }
   }
-  bool Contains(const Transition& tr) {
+  bool Contains(const Transition<T>& tr) {
     auto f =
         _transitions | ranges::views::filter([&tr](const auto& transition) {
           return transition == tr;
@@ -296,7 +304,7 @@ struct TransitionGroup {
 
  private:
   static std::string Format(const std::string_view name,
-                            const Transition& transition) {
+                            const Transition<T>& transition) {
     auto [from, to, input, cond, delay] = transition.Tuple();
     return absl::StrFormat("%s.Add(%s, %s, %s, [](){ %s; }, %s);", name, from,
                            to, input, Utils::Quote(cond), delay);

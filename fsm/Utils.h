@@ -14,11 +14,13 @@
  */
 #pragma once
 
+#include <fast_float/fast_float.h>
+
+#include <iostream>
 #include <locale>
 #include <optional>
 #include <string>
 #include <vector>
-#include <fast_float/fast_float.h>
 
 #include "absl/strings/str_format.h"
 #include "types/numeric.h"
@@ -72,6 +74,10 @@ struct is_streamable_impl<
     : std::true_type {};
 template <typename T>
 inline constexpr bool is_streamable_v = is_streamable_impl<T>::value;
+
+template <typename T>
+inline constexpr bool IsNumeric = std::disjunction_v<std::is_integral<T>, std::is_floating_point<T>>;
+
 }  // namespace detail
 
 namespace internal {
@@ -87,10 +93,19 @@ std::optional<T> AttemptConversion(const std::string_view str) {
   const char* last = first + str.size();
   T value{};
   auto [ptr, ec] = fast_float::from_chars(first, last, value);
-  if (ec != std::errc() || ptr != last) {
-    return std::nullopt;
+
+  if (ec == std::errc{} && ptr == last)
+    return value;
+  if (ec == std::errc::result_out_of_range) {
+    if (*first == '-') {
+      std::cerr << "Clamped to MIN" << std::endl;
+      return std::numeric_limits<T>::min();
+    }
+    std::cerr << "Clamped to MAX" << std::endl;
+    return std::numeric_limits<T>::max();
   }
-  return value;
+
+  return std::nullopt;
 }
 }  // namespace internal
 
@@ -166,12 +181,12 @@ std::string Quote(const std::string &str);
  * @tparam T Numerický typ.
  */
 template <typename T>
-Numeric StringToNumeric(const std::string_view str) {
+std::optional<T> StringToNumeric(const std::string_view str) {
   if constexpr (!std::disjunction_v<std::is_integral<T>, std::is_floating_point<T>>)
-    return Numeric();
-  if (auto v = internal::AttemptConversion<T>(str); v)
-    return Numeric(v.value());
-  return Numeric();
+    return std::nullopt;
+  if (auto v = internal::AttemptConversion<T>(str); v.has_value())
+    return v.value();
+  return std::nullopt;
 }
 
 /**

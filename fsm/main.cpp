@@ -29,7 +29,7 @@ void parserTest() {
 
   //? Get is necessary for getting the value if conv was directly printed it would output correctly 10
   auto conv = Utils::StringToNumeric<int>("10");
-  if (auto c = conv.Get<int>(); c.has_value()) {
+  if (auto c = conv; c.has_value()) {
     std::cout << c.value() << std::endl;
   }
 }
@@ -65,14 +65,7 @@ int main(int argc, char** argv) {
   interpreter.Prepare();
   std::cout << automat.transitions << std::endl;
   std::cout << interpreter.transitionGroup << std::endl;
-  interpreter.Execute(false);
-  // auto cond = automat.transitions.WhereCond();
-  // std::cout << cond << std::endl;
-  // if (auto item = cond.First(); item.has_value()) {
-  //   auto i = item.value().get().cond;
-  //   std::cout << i << std::endl;
-  //   lua.safe_script(std::string_view(i));
-  //
-  // }
+  // interpreter.Execute(false);
+  Interpreter::Interpret::simpleExample();
   return 0;
 }
