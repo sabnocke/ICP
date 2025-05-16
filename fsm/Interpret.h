@@ -13,6 +13,7 @@
 
 #include "AutomatLib.h"
 #include "types/all_types.h"
+#include "Stopwatch.h"
 
 
 namespace Interpreter {
@@ -23,31 +24,38 @@ using namespace types;
  * @brief Spouští a interpretuje běh konečného automatu.
  */
 class Interpret {
-private:
   /// Generovaný automat, který se bude interpretovat
   AutomatLib::Automat _automat;
-
-  /// Aktuální název stavu
-  std::string activeState;
+  bool running = true;
 
   /// Kolekce všech stavů automatu
-  StateGroup stateGroup;
+  StateGroup<std::string> stateGroup = _automat.states;
+  StateGroup<sol::protected_function> stateGroupFunction;
+
+  /// Aktuální název stavu
+  std::string activeState = stateGroup.First().Name;
 
   /// Kolekce všech proměnných automatu
-  VariableGroup variableGroup;
+  VariableGroup variableGroup = _automat.variables;
 
   /// Seznam registrovaných vstupních signálů
-  std::vector<std::string> inputs;
+  absl::btree_set<std::string> inputs = absl::btree_set<std::string>(_automat.inputs.begin(), _automat.inputs.end());
+  absl::node_hash_map<std::string, std::string> inputsValues;   //! might be unnecessary
 
   /// Seznam registrovaných výstupních signálů
-  std::vector<std::string> outputs;
-  void ChangeState(const TransitionGroup& tg);
+  std::vector<std::string> outputs = _automat.outputs;
+  absl::node_hash_map<std::string, std::string> outputsValues;  //! might be unnecessary
+
+  void ChangeState(const TransitionGroup<sol::protected_function>& tg);
   void LinkDelays();
+
+  static void InterpretResult(sol::object& result);
 
   /**
    * @brief Připraví proměnné v rámci Lua prostředí automatu.
    */
   void PrepareVariables();
+  void PrepareStates();
 
   /**
    * @brief Načte a připraví přechodová pravidla z modelu automatu.
@@ -59,9 +67,16 @@ private:
    */
   void PrepareSignals();
 
-public:
+  std::optional<sol::protected_function> Interpret::TestAndSet(
+      const std::string& _cond);
+  static bool ExtractBool(const sol::protected_function_result& result);
+
+  Timer<> timer{};
+
+ public:
   /// Skupina přechodů vybraná k aktuálnímu zpracování
-  TransitionGroup transitionGroup;
+  TransitionGroup<std::string> transitionGroup{};
+  TransitionGroup<sol::protected_function> transitionGroupFunction{};
 
   /**
    * @brief Provede kompletní přípravu interpretu voláním přípravných metod.
@@ -72,7 +87,7 @@ public:
    * @brief Konstruktor přijímající existující model automatu.
    * @param automat Reference na instanci třídy Automat.
    */
-  explicit Interpret(AutomatLib::Automat &automat);
+  explicit Interpret(AutomatLib::Automat&& automat);
 
   /**
    * @brief Statická ukázková metoda demonstrující jednoduché použití interpretu.
@@ -82,12 +97,14 @@ public:
   /// Interní Lua stav pro vykonání akcí automatu
   sol::state lua{};
 
+  std::string ExtractInput(const std::string& line);
+  bool ExtractCommand(const std::string& line);
+  std::pair<int, std::string> ParseStdinInput(const std::string& line);
   /**
    * @brief Spustí vykonání automatu.
-   * @param once Pokud true, provede pouze jeden krok a vrátí výsledek.
    * @return Výstupní kód nebo hodnota výsledku provedení.
    */
-  int Execute(bool once);
+  int Execute();
 };
 
 }  // namespace Interpreter

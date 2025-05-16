@@ -13,14 +13,9 @@
 #pragma once
 
 #include <absl/strings/str_join.h>
-#include <functional>
-#include <iomanip>
-#include <sstream>
 #include <string>
 
 #include "ParserLib.h"
-#include "Utils.h"
-#include <range/v3/view.hpp>
 #include "types/all_types.h"
 #include "external/sol.hpp"
 
@@ -42,15 +37,15 @@ namespace AutomatLib {
      * @brief Přidá nový stav podle jména a akce.
      * @param result dvojice (název stavu, text akce)
      */
-    void addState(const std::tuple<std::string, std::string> &result) {
-      states << State{std::get<0>(result), std::get<1>(result)};
+    void addState(const State<std::string> &result) {
+      states << result;
     }
 
     /**
      * @brief Přidá nový přechod.
      * @param result Záznam Transition.
      */
-    void addTransition(const Transition &result);
+    void addTransition(const Transition<std::string> &result) { transitions << result; }
 
     /**
      * @brief Přidá novou proměnnou.
@@ -80,22 +75,22 @@ namespace AutomatLib {
 
     /** @name Metody pro generování kódu */
     ///@{
-    void PrepareHelperVariables();
+    // void PrepareHelperVariables();
     void PrepareStateActions() const;
-    void PrepareVariables();
-    void PrepareTransitions();
-    void PrepareExecuteFunction();
-    void PrepareUtilsFunctions();
-    void PrepareSignals();
-    void LinkDelays();
-    void Create();
+    // void PrepareVariables();
+    // void PrepareTransitions();
+    // void PrepareExecuteFunction();
+    // void PrepareUtilsFunctions();
+    // void PrepareSignals();
+    // void LinkDelays();
+    // void Create();
     ///@}
 
     /// Kontejner stavů
     StateGroup states;
 
     /// Kontejner přechodů
-    TransitionGroup transitions;
+    TransitionGroup<std::string> transitions;
 
     /// Seznam vstupů
     std::vector<std::string> inputs;

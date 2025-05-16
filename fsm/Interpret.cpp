@@ -1,11 +1,7 @@
-//
-// Created by ReWyn on 10.05.2025.
-//
-
 #include "Interpret.h"
 
 #include <re2/re2.h>
-
+#include <spdlog/spdlog.h>
 #include <thread>
 
 #include "Utils.h"
@@ -16,21 +12,12 @@
 //TODO change the transition (and potentially states) to functions, compile them ahead via lua.load(...)
 //TODO and store the as protected_functions in some friend container (TransitionGroup if remade with generics is good contender)
 //TODO same for state actions
-//TODO remove macros, they are C filth
 //TODO maybe try to split the Execute logic
-//TODO try to implement ability to watch multiple events (input, timer), try to figure out rxcpp (or something similar)
+//TODO try to implement ability to watch multiple events (input, timer)
 //TODO remove the std::move for lua state, state will be build directly in interpreter
 //TODO do a more robust error detection and recovery
 //TODO ^ for all parts of project (automat, parser, interpreter)
-//TODO try implementing parsing for code blocks ([] on multiple lines); should be question of parsing
-//TODO fast_float could either be moved to vcpkg or entirely removed, depending on how replaceable it is with std::from_chars
-
-#define LUA_SCRIPT(out, code)           \
-  try {                                 \
-    lua.script(code);                   \
-  } catch (const std::exception& e) {   \
-    std::cerr << e.what() << std::endl; \
-  }
+//TODO create a lua file that would contain useful functions (in a way, behave like a stdlib)
 
 namespace Interpreter {
 void Interpret::simpleExample() {
@@ -52,54 +39,82 @@ std::optional<T> TestAndSetValue(const std::string& _value) {
   return std::nullopt;
 }
 
-Interpret::Interpret(AutomatLib::Automat& automat) {
-  activeState = automat.states.First().Name;
-  stateGroup = automat.states;
-  variableGroup = automat.variables;
-  transitionGroup = automat.transitions;
-  inputs = automat.inputs;
-  outputs = automat.outputs;
-  sol::state lua = std::move(automat.lua);
+Interpret::Interpret(AutomatLib::Automat&& automat)
+    : _automat(std::move(automat)) {
+  lua.open_libraries(sol::lib::base);
+  lua["elapsed"] = [&]() { return timer.elapsed(); };
+  if (auto file = lua.script_file("stdlib.lua"); !file.valid) {
+    const sol::error err = file;
+    spdlog::error("Failed to open stdlib.lua: {}", err.what());
+    exit(1);
+  }
 }
 
-void Interpret::ChangeState(const TransitionGroup& tg) {
+void Interpret::InterpretResult(sol::object& result) {
+  auto type = result.get_type();
+  spdlog::debug("Detected type is {}", type);
+
+  if (result.is<bool>) {
+    bool value = result.as<bool>();
+    spdlog::debug("Interpreted as bool: {}", value);
+  } else if (result.is<int>) {
+    int value = result.as<int>();
+    spdlog::debug("Interpreted as int: {}", value);
+  } else if (result.is<double>) {
+    spdlog::debug("Interpreted as double: {}", result.as<double>());
+  } else if (result.is<std::string>) {
+    spdlog::debug("Interpreted as string: {}", result.as<std::string>());
+  } else if (result.is<sol::table>) {
+    spdlog::debug("Interpreted as table");
+  } else if (result.is<sol::function>) {
+    spdlog::debug("Interpreted as function");
+  } else if (result.is<sol::type::nil>) {
+    spdlog::debug("Interpreted as nil");
+  } else {
+    spdlog::debug("Interpretation undefined");
+  }
+}
+//TODO modify this to accept reference instead of group
+void Interpret::ChangeState(
+    const TransitionGroup<sol::protected_function>& tg) {
   if (const auto t = tg.First(); t.has_value()) {
+    timer.tock();
     activeState = t.value().get().to;
     std::cout << "STATE: " << activeState << std::endl;
-    const auto [Name, Action] = stateGroup.Find(activeState).First();
-    try {
-      auto result = lua.script(Action);
-    } catch (const std::exception& e) {
-      std::cerr << e.what() << std::endl;
+    const auto [Name, Action] = stateGroupFunction.Find(activeState).First();
+    if (const auto result = Action(); result.valid()) {
+      // yay
+      auto r = sol::object(result[0]);
+      InterpretResult(r);
+    } else {
+      // aww
+      spdlog::debug("Action undefined");
     }
   }
 }
 
 void Interpret::LinkDelays() {
-  auto hasDelay = transitionGroup.WhereTimer();
+  //TODO finish this
+  auto hasDelay = transitionGroup.WhereMut(
+      [](const Transition<>& tr) { return !tr.delay.empty(); });
 
   if (hasDelay.None())
     return;
 
-  for (Variable var : variableGroup.Get()) {
-    auto mod = hasDelay.Where(
-        [&](const Transition& tr) { return tr.delay == var.Name; });
-    if (absl::EqualsIgnoreCase(var.Type, "int")) {
-      if (auto val = TestAndSetValue<int>(var.Value); val.has_value()) {
-        mod.TransformAction([&](const Transition& tr) {
-        Transition ntr(tr);
-        ntr.delayInt = std::abs(val.value());
-        return ntr;
+  for (auto v : variableGroup.Get()) {
+    auto mod = hasDelay.WhereMut(
+        [v](const Transition<>& tr) { return tr.delay == v.Name; });
+
+    if (auto val = TestAndSetValue<int>(v.Value); val.has_value()) {
+      mod.TransformMut([val](auto& tr) {
+        using RawType = Utils::detail::remove_cvref_t<decltype(tr)>;
+        if constexpr (std::is_pointer_v<RawType> || is_smart_ptr<RawType>) {
+          tr->delayInt = val.value();
+          return tr;
+        }
+        tr.delayInt = val.value();
+        return tr;
       });
-      transitionGroup.Merge(mod);
-      }
-    } else {
-      //* There really isn't much of a reason to have to automat wait for more than int MAX_VALUE
-      //* BTW, int MAX_VALUE = 2,147,483,647 => cca. 24 days
-      std::cerr << absl::StrFormat(
-                       "Expected delay of type 'int' but received '%s'",
-                       var.Type)
-                << std::endl;
     }
   }
 }
@@ -127,28 +142,101 @@ void Interpret::PrepareVariables() {
   }
 }
 
+void Interpret::PrepareStates() {
+  StateGroup<sol::protected_function> tg;
+  auto new_states = stateGroup.Transform<sol::protected_function>(
+      [this](const State<std::string>& tr) {
+        State<sol::protected_function> n{};
+        n.Name = tr.Name;
+        if (const auto a = TestAndSet(tr.Action); a.has_value())
+          n.Action = a.value();
+        else {
+          n.Action = sol::protected_function{};
+        }
+        return n;
+      });
+  //TODO store the result somewhere
+}
+
+std::optional<sol::protected_function> Interpret::TestAndSet(
+    const std::string& _cond) {
+  if (_cond.empty()) {
+    if (const auto zero = lua.load("return true"); zero.valid()) {
+      return zero.get<sol::protected_function>();
+    }
+    return std::nullopt;
+  }
+  if (const auto primary = lua.load(_cond); primary.valid()) {
+    return primary.get<sol::protected_function>();
+  } else {
+    const sol::error primary_error = primary;
+    spdlog::warn(primary_error.what());
+    if (const auto secondary = lua.load("return true"); secondary.valid()) {
+      return secondary.get<sol::protected_function>();
+    } else {
+      const sol::error secondary_error = secondary;
+      spdlog::error(secondary_error.what());
+
+      return std::nullopt;
+    }
+  }
+}
+
+auto Interpret::ExtractBool(const sol::protected_function_result& result) {
+  if (!result.valid()) {
+    sol::error r_error = result;
+    spdlog::error("Lua runtime error during function call: {}", r_error);
+    return false;
+  }
+
+  const auto ret = result[0];
+  auto val_type = ret.get_type();
+  spdlog::debug("Detected type: {}", val_type);
+
+  if (val_type == sol::type::nil) {
+    return false;
+  }
+  if (val_type == sol::type::boolean) {
+    return ret.get<bool>();
+  }
+  //? Anything that isn't 'nil' or 'false' is automatically true
+  return true;
+}
+
 void Interpret::PrepareTransitions() {
-  TransitionGroup ntg;
+  TransitionGroup<sol::protected_function> ntg;
   for (auto& transition : transitionGroup) {
-    auto ntr = Transition(transition);
     if (transition.cond.empty())
       continue;
-    // ntr.cond = absl::StrFormat("return %s", transition.cond);
 
-    ntg.Add(ntr);
+    if (auto r = TestAndSet(transition.cond);
+        r.has_value() && r.value().valid()) {
+      auto res = r.value();
+      auto ntr =
+          Transition<decltype(res)>::Convert /*<Transition<>>*/ (transition);
+      ntr.cond = res;
+      ntr.hasCondition = true;
+      ntg.Add(std::move(ntr));
+    } else {
+      //! in case of complete failure skip the transition? or stop completely?
+      spdlog::warn(
+          "Skipping transition: {} -> {}; Error in lua runtime or missing "
+          "correct definition",
+          transition.from, transition.to);
+    }
   }
-  transitionGroup = ntg;
+  transitionGroupFunction = ntg;
 }
 
 void Interpret::PrepareSignals() {
   for (auto& signal : inputs) {
-    // auto c = absl::StrFormat("%s = ''", signal);
-    lua[signal] = "";
+    lua["Inputs"][signal] = "";
+    // inputsValues[signal] = ""; // can do this without using external containers
   }
   std::cout << std::endl;
   for (auto& signal : outputs) {
-    // auto c = absl::StrFormat("%s = ''", signal);
-    lua[signal] = "";
+    lua["Outputs"][signal] = "";
+    // outputsValues[signal] = "";
   }
 }
 
@@ -156,6 +244,7 @@ void Interpret::Prepare() {
   LinkDelays();
   PrepareVariables();
   PrepareTransitions();
+  PrepareStates();
   PrepareSignals();
 }
 
@@ -167,43 +256,94 @@ bool StringToBool(const std::string& str) {
   return val;
 }
 
-int Interpret::Execute(bool once = false) {
+std::string Interpret::ExtractInput(const std::string& line) {
+  auto l = Utils::RemovePrefix(line, "input:", Utils::StringComparison::Lazy);
+  // should be <name> = <value>
+  const auto s = Utils::Split(line, '=');
+  if (s.size() != 2) {
+    spdlog::error("Possibly malformed input: {}", line);
+    return {};
+  }
+  auto name = Utils::Trim(s[0]);
+  auto value = Utils::Trim(s[1]);
+  if (!inputs.contains(name)) {
+    spdlog::error("Cannot dynamically define new signals");
+    return {};
+  }
+  lua["Inputs"][name] = value;
+  return name;
+}
+
+bool Interpret::ExtractCommand(const std::string& line) {
+  const auto l =
+      Utils::RemovePrefix(line, "cmd:", Utils::StringComparison::Lazy);
+  // Commands should be ideally single-worded
+  const auto cmd = Utils::Trim(l);
+  if (cmd.empty())
+    return false;
+  if (Utils::Contains(cmd, "stop")) {
+    running = false;
+  }
+  return true;
+}
+
+std::pair<int, std::string> Interpret::ParseStdinInput(
+    const std::string& line) {
+  // INPUT, CMD, LOG
+  if (Utils::Contains(line, "input")) {
+    std::string signalName = ExtractInput(line);
+    return {1, ExtractInput(line)};
+  }
+  if (Utils::Contains(line, "stop")) {
+    return {-1, ""};
+  }
+  if (Utils::Contains(line, "log")) {
+    //! Currently not implemented
+  }
+  return {0, ""};
+}
+
+int Interpret::Execute() {
+  //TODO split into separate procedure for clarity
+  //? Placing it here leads to better results
   lua.open_libraries(sol::lib::base);
   try {
-    while (true && !once) {
-      // First find all reachable transitions
+    while (running) {
+      // First find all reachable transitions from current transition
       std::cout << "Active state: " << activeState << std::endl;
-      auto transitions = transitionGroup.Retrieve(activeState);
-      std::cout << "Possible next states: " << std::endl
-                << transitions.Out() << std::endl;
+      auto transitions = transitionGroupFunction.RetrieveMut(activeState);
+      if (transitions.None())
+        continue;  // exit is better
+      // std::cout << "Possible next states: " << std::endl
+      //           << transitions.Out() << std::endl;
       // Find all free transitions
-      if (auto r = transitionGroup.WhereNone(); r.Some()) {
+      if (auto r = transitions.WhereNone(); r.Some()) {
         // move and continue
         ChangeState(r);
         continue;
       }
       auto transitionsCond = transitions.WhereCond();
 
+      auto condTrue =
+          TransitionsReference<decltype(transitionsCond)::PureType>{};
       for (auto& transition : transitionsCond) {
-        std::string cond = transition.cond;
-        std::cout << cond << std::endl;
-        if (auto result = lua.safe_script(cond); result.valid()) {
-          std::cout << result.get<std::string>() << std::endl;
+        if (auto cond = transition.get().cond();
+            cond.valid() && ExtractBool(cond)) {
+          condTrue.Add(transition.get());
+        } else {
+          spdlog::warn("Error retrieving value from function");
+          continue;
         }
       }
 
-      // Find all transitions that have valid condition, no timer and no event
-      // if (auto r = transitionsCond.WhereNoTimer().WhereNoEvent(); lua_out && r.Some()) {
-      //   ChangeState(r);
-      //   continue;
-      // }
+      auto [event_true, event_false] = condTrue.WhereEvent<true>();
+      auto [timer_true, timer_false] = condTrue.WhereTimer<true>();
       // Find all transitions that have condition, but no input
-      if (auto r = transitionsCond.WhereNoEvent(); r.Some()) {
+      if (auto r = event_false; r.Some()) {
         // set timer for smallest delay transition
         /*
       * can the timer influence where to go?
-      * if timer starts and input is registered should i continue with timer or input?
-      * current implementation uses simple approach, once timer is set it is decided
+      * if timer starts and input is registered should I continue with timer or input?
       */
         /*
       * this is a trick as according to above timer is decisive and
@@ -212,71 +352,51 @@ int Interpret::Execute(bool once = false) {
       *
       * because of these two assumptions, I am allowed to do this
       */
-        if (auto smallest = r.Smallest(); smallest.has_value()) {
+        auto smallest = r.SmallestTimer().get();
+        auto duration = std::chrono::milliseconds(smallest.delayInt);
+        std::this_thread::sleep_for(duration);
+        ChangeState(r);
+        continue;
+        /*if (auto smallest = r.Smallest(); smallest.has_value()) {
           auto duration = std::chrono::milliseconds(smallest.value().delayInt);
           std::this_thread::sleep_for(duration);
           ChangeState(r);
           continue;
-        }
+        }*/
       }
-      if (auto r = transitionsCond.WhereEvent(); r.Some()) {
-        // "INPUT: in1 = 1"
+      if (auto r = event_true; r.Some()) {
         std::string line;
-        std::string signalName, sigVal;
         std::getline(std::cin, line);
-        if (Utils::Contains(line, "input") &&
-            !RE2::FullMatch(line, R"(INPUT: (?<sig>\w+) = (?<val>\w+))",
-                            &signalName, &sigVal)) {
-          std::cerr << "ERROR: " << line << std::endl;
+        auto [code, signalName] = ParseStdinInput(line);
+        if (code == -1)
+          break;
+        if (code == 0)
           continue;
-        }
-        if (Utils::Contains(line, "STOP")) {
-          return 0;
-        }
-        std::cerr << line << " " << signalName << " " << sigVal << std::endl;
-        try {
-          lua[signalName] = sigVal;
-        } catch (const std::exception& e) {
-          std::cerr << e.what() << std::endl;
-        }
-        try {
-          std::string smt = lua[signalName];
-          std::cout << smt << std::endl;
-        } catch (const std::exception& e) {
-          std::cerr << e.what() << std::endl;
-        }
 
-        std::cout << transitionsCond.WhereNoTimer() << std::endl;
-
-        if (auto r1 = transitionsCond.WhereNoTimer(); r.Some()) {
+        if (auto r1 = event_true & timer_false; r.Some()) {
           // All transitions with input but no timer
-          auto inputs = r1.Where([signalName](const Transition& tr) {
-            return tr.input == signalName;
-          });
-          std::cerr << inputs.Out() << std::endl;
+          auto inputs = r1.Where(
+              [signalName](const Transition<sol::protected_function>& tr) {
+                return tr.input == signalName;
+              });
+          spdlog::debug("TransitionGroup: {}", inputs.Out());
           ChangeState(inputs);
           continue;
         }
-        if (auto r2 = transitionsCond.WhereTimer(); r2.Some()) {
+        if (auto r2 = event_true & timer_true; r2.Some()) {
           // All transitions with input and timer
-          auto inputs = r2.Where([signalName](const Transition& tr) {
-            return tr.input == signalName;
-          });
-          std::cerr << inputs.Out() << std::endl;
+          //TODO missing waiting
+          auto inputs = r2.Where(
+              [signalName](const Transition<sol::protected_function>& tr) {
+                return tr.input == signalName;
+              });
+          spdlog::debug("TransitionGroup: {}", inputs.Out());
           ChangeState(inputs);
         }
       }
-
-      // Find all
-      // wait for timers (can do) or input event (can't do)
-      // run timers
-      // auto result = timer.Start();
-      // if (result.has_value()) {
-      //   // move there?
-      // }
     }
   } catch (const std::exception& e) {
-    std::cerr << "ERROR: " << e.what() << std::endl;
+    spdlog::error(e.what());
     return 1;
   }
   return 0;

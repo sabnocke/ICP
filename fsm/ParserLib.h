@@ -29,6 +29,7 @@ namespace ParserLib {
    * @struct TransitionRecord
    * @brief Reprezentuje jeden přechod načtený ze souboru.
    */
+  [[deprecated("Use types::Transition instead")]]
   struct TransitionRecord {
     std::string from;   /**< Výchozí stav */
     std::string to;     /**< Cílový stav */
@@ -70,6 +71,7 @@ namespace ParserLib {
    * @struct VariableRecord
    * @brief Reprezentuje jednu proměnnou načtenou ze souboru.
    */
+  [[deprecated("Use types::Variable instead")]]
   struct VariableRecord {
     std::string type;  /**< Datový typ proměnné */
     std::string name;  /**< Název proměnné */
@@ -131,7 +133,7 @@ namespace ParserLib {
      * @param line Text řádku.
      * @return pair{název, kód akce} nebo nullopt.
      */
-    [[nodiscard]] std::optional<std::tuple<std::string, std::string>>
+    [[nodiscard]] std::optional<State<std::string>>
       parseState(const std::string &line) const;
 
     /**
@@ -145,7 +147,7 @@ namespace ParserLib {
      * @brief Zkusí rozparsovat přechod.
      * @param line Text řádku.
      */
-    [[nodiscard]] std::optional<Transition>
+    [[nodiscard]] std::optional<Transition<std::string>>
       parseTransition(const std::string &line) const;
 
     /**

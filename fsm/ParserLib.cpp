@@ -1,16 +1,12 @@
 #include "ParserLib.h"
-
-#include <absl/log/absl_check.h>
-#include <absl/strings/str_format.h>
 #include <absl/strings/str_split.h>
 #include <re2/re2.h>
-
 #include <fstream>
 #include <iostream>
-
 #include "AutomatLib.h"
 #include "Utils.h"
-#include "range/v3/view/transform.hpp"
+#include <spdlog/spdlog.h>
+
 
 #define DEFAULT_NAME "Unknown"
 #define NOTHING std::nullopt
@@ -52,6 +48,7 @@ AutomatLib::Automat Parser::parseAutomat(const std::string &file) {
 
 
   while (std::getline(ifs, line)) {
+    //TODO remove this
     std::cout << line << std::endl;                     //* <-- line printing <--
     if (line.empty())
       continue;
@@ -97,14 +94,13 @@ AutomatLib::Automat Parser::parseAutomat(const std::string &file) {
 bool Parser::SectionHandler(const std::string &line,
                             AutomatLib::Automat &automat) const {
   //? return false in each case might be unnecessary as it cannot fall through multiple cases
-  // std::cerr << "SectionHandler received: " << line << std::endl;
-  // std::cerr << "Actual Section: " << ActualSection << std::endl;
   switch (ActualSection) {
     case Name:
       if (const auto result = extractName(line); result.has_value()) {
         automat.Name = result.value();
         return true;
       }
+      spdlog::warn("Reached section '{}' but no name was extracted", ActualSection);
       return false;
     case Comment:
       return true;
@@ -114,6 +110,7 @@ bool Parser::SectionHandler(const std::string &line,
         automat.addState(result.value());
         return true;
       }
+      spdlog::warn("Reached section '{}' but no name was extracted", ActualSection);
       return false;
     }
     case Transitions: {
@@ -121,6 +118,7 @@ bool Parser::SectionHandler(const std::string &line,
         automat.addTransition(result.value());
         return true;
       }
+      spdlog::warn("Reached section '{}' but no name was extracted", ActualSection);
       return false;
     }
     case Variables:
@@ -128,28 +126,33 @@ bool Parser::SectionHandler(const std::string &line,
         automat.addVariable(result.value());
         return true;
       }
+      spdlog::warn("Reached section '{}' but no name was extracted", ActualSection);
       return false;
     case Inputs:
       if (const auto result = parseSignal(line); result.has_value()) {
         automat.addInput(result.value());
         return true;
       }
+      spdlog::warn("Reached section '{}' but no name was extracted", ActualSection);
       return false;
     case Outputs:
       if (const auto result = parseSignal(line); result.has_value()) {
         automat.addOutput(result.value());
         return true;
       }
+      spdlog::warn("Reached section '{}' but no name was extracted", ActualSection);
       return false;
   }
+  spdlog::error("Reached SectionHandler but no valid section was chosen.");
   return false;
 }
 
-std::optional<std::tuple<std::string, std::string>> Parser::parseState(
+std::optional<State<std::string>> Parser::parseState(
     const std::string &line) const {
-  // std::cerr << "Received line: " << line << std::endl;
   const auto trimmed = Utils::Trim(line);
   std::string name, code;
+  //! this works for single line state definition
+
   // const auto res = Utils::FindAll(trimmed, '[', ']');
   // std::cout << trimmed << " " << std::boolalpha << res << std::endl;
 
@@ -159,12 +162,12 @@ std::optional<std::tuple<std::string, std::string>> Parser::parseState(
   //       "Missing opening/closing bracket for state definition\n", trimmed);
   //   return NOTHING;
   // }
-  if (!RE2::FullMatch(trimmed, *states_pattern_, &name, &code)) {
-    // LOG(WARNING) << "Didn't find match" << std::endl;
-    //TODO replace with something else
-    return NOTHING;
+  if (RE2::FullMatch(trimmed, *states_pattern_, &name, &code)) {
+    return State<std::string>(Utils::Trim(name), Utils::Trim(code));
   }
-  return std::make_tuple(Utils::Trim(name), Utils::Trim(code));
+
+  spdlog::error("Malformed state definition: {}", trimmed);
+  return NOTHING;
 }
 
 std::optional<std::string> Parser::extractName(const std::string &line) const {
@@ -175,12 +178,11 @@ std::optional<std::string> Parser::extractName(const std::string &line) const {
       return trimmed;
     }
   }
-  if (auto trimmed = Utils::Trim(line); !trimmed.empty()) {
-    return trimmed;
-  }
+  spdlog::error("Malformed name definition: {}", line);
   return NOTHING;
 }
 
+[[deprecated("Comments are ignored")]]
 std::optional<std::string> Parser::extractComment(
     const std::string &line) const {
   std::string comment;
@@ -202,12 +204,14 @@ std::optional<Variable> Parser::parseVariable(
   const auto trimmed = Utils::Trim(line);
   std::string type, name, value;
   if (RE2::FullMatch(trimmed, *variables_pattern_, &type, &name, &value)) {
-    return Variable{type, name, value};
+    return Variable{(std::move(type)), (std::move(name)), (std::move(value))};
   }
+  spdlog::error("Malformed variable definition: {}", trimmed);
   return NOTHING;
 }
 
-[[deprecated]] std::optional<VariableRecord> parseVariablePlain(
+[[deprecated]]
+std::optional<VariableRecord> parseVariablePlain(
     const std::string &line) {
   // expects format type name = value;
   auto split = Utils::Split(line, '=');
@@ -226,15 +230,15 @@ std::optional<Variable> Parser::parseVariable(
   return res;
 }
 
-std::optional<Transition> Parser::parseTransition(
+std::optional<Transition<std::string>> Parser::parseTransition(
     const std::string &line) const {
   std::string from, to, input, cond, delay;
 
   if (RE2::FullMatch(line, *transitions_pattern_, &from, &to, &input, &cond,
                      &delay)) {
-    auto cond2 = Utils::Remove(cond, '[');
-    auto cond3 = Utils::Remove(cond2, ']');
-    return Transition{from, to, input, Utils::Trim(cond3), delay};
+    const auto cond2 = Utils::Remove(cond, '[');
+    const auto cond3 = Utils::Remove(cond2, ']');
+    return Transition<std::string>{from, to, input, Utils::Trim(cond3), delay};
   }
 
   return NOTHING;

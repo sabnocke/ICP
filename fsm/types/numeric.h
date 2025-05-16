@@ -11,13 +11,18 @@
 
 #pragma once
 
+#include <fmt/base.h>
+
 #include <iomanip>
 #include <optional>
+#include <ostream>
 #include <string>
 #include <tuple>
-#include <variant>
 #include <type_traits>
-#include <ostream>
+#include <variant>
+
+#include "../Utils.h"
+#include "Utils.h"
 
 namespace types {
 
@@ -31,14 +36,6 @@ template <typename T, typename... Alternatives>
 struct is_in_variant<T, std::variant<Alternatives...>>
     : std::disjunction<std::is_same<T, Alternatives>...> {};
 
-/**
- * @brief Pomocná metafunkce pro odstranění cv-qualifiers a referencí.
- */
-template <typename T>
-struct remove_cvref : std::remove_cv<std::remove_reference_t<T>> {};
-
-template <typename T>
-using remove_cvref_t = typename remove_cvref<T>::type;
 
 /**
  * @brief Konstantní výraz, zda je T jeden z alternativ ve variantě.
@@ -52,6 +49,7 @@ constexpr bool is_in_variant_v = is_in_variant<T, Variant>::value;
  * @details
  * Interně používá std::variant<std::monostate, int, long long, double, std::string>.
  */
+[[deprecated]]
 struct Numeric {
 private:
   std::variant<std::monostate, int, long long, double, std::string> _numeric;
@@ -75,7 +73,7 @@ public:
    * @param value Vkládaná hodnota.
    */
   template <typename T, typename = std::enable_if_t<
-                            is_in_variant_v<remove_cvref_t<T>, VariantType>>>
+                            is_in_variant_v<Utils::detail::remove_cvref_t<T>, VariantType>>>
   explicit Numeric(T&& value) : _numeric(std::forward<T>(value)) {}
 
   /**
@@ -85,6 +83,7 @@ public:
                             is_in_variant_v<remove_cvref_t<T>, VariantType>>>
   Numeric& operator=(T&& value) {
     _numeric = std::forward<T>(value);
+    Utils::detail::remove_cvref_t
     return *this;
   }
 

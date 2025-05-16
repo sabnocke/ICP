@@ -1,0 +1,9 @@
+{
+  "dependencies": [
+    "abseil",
+    "lua",
+    "range-v3",
+    "re2",
+    "spdlog"
+  ]
+}

@@ -1,11 +1,10 @@
 #include "Utils.h"
 
-#include <fast_float/fast_float.h>
-
-#include <iomanip>
+// #include <fast_float/fast_float.h>
+#include "external/fast_float.h"
 #include <locale>
 #include <range/v3/all.hpp>
-#include <sstream>
+#include "absl/strings/ascii.h"
 
 namespace Utils {
 
@@ -61,13 +60,13 @@ std::string Remove(const std::string &str, const std::string &substr) {
 
 std::string ToLower(const std::string &str) {
   auto view = str | ranges::views::transform(
-                        [](auto c) { return std::tolower(c); });
+                        [](auto c) { return absl::ascii_tolower(c); });
   return view | ranges::to<std::string>();
 }
 std::string ToLower(const std::string_view str) {
   return ToLower(std::string(str));
 }
-char ToLower(const char c) { return std::tolower(c); }
+char ToLower(const char c) { return absl::ascii_tolower(c); }
 
 bool Contains(const std::string &str, const std::string_view view) {
   const auto lower = ToLower(str);
@@ -77,28 +76,7 @@ bool Contains(const std::string &str, const std::string_view view) {
   return true;
 }
 
-bool Contains(const std::string &str, const char c) {
-  return ToLower(str).find(c) != std::string::npos;
-}
-
-std::vector<std::string> Split(const std::string &str, const char delim) {
-  auto res =
-      str | ranges::views::split(delim) | ranges::to<std::vector<std::string>>;
-  return res;
-}
-std::vector<std::string> Split(const std::string &str,
-                               const std::string &delim) {
-  return str | ranges::views::split(delim) |
-         ranges::to<std::vector<std::string>>;
-}
-
-std::string Quote(const std::string &str) {
-  std::stringstream ss;
-  ss << std::quoted(str);
-  return ss.str();
-}
-
-std::optional<long long> AttemptIntegerConversion(const std::string &input) {
+[[deprecated]] std::optional<long long> AttemptIntegerConversion(const std::string &input) {
   const auto first = input.data();
   const auto last = input.data() + input.size();
   long long value;
@@ -110,7 +88,7 @@ std::optional<long long> AttemptIntegerConversion(const std::string &input) {
 
   return value;
 }
-std::optional<double> AttemptDoubleConversion(const std::string &input) {
+[[deprecated]] std::optional<double> AttemptDoubleConversion(const std::string &input) {
   const auto first = input.data();
   const auto last = input.data() + input.size();
   double value;

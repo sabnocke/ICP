@@ -1,5 +1,10 @@
 
 #include <absl/strings/str_format.h>
+#include <absl/log/absl_log.h>
+#include <absl/log/initialize.h>
+#include <absl/flags/flag.h>
+#include <absl/log/globals.h>
+#include <spdlog/spdlog.h>
 
 #include <cassert>
 #include <fstream>
@@ -53,19 +58,21 @@ void luaTest() {
 }
 
 int main(int argc, char** argv) {
-  if (argc != 2) {
+  if (argc < 2) {
     std::cerr << "Requires path to valid fsm definition" << std::endl;
     return 1;
   }
-  sol::state lua{};
-  lua.open_libraries(sol::lib::base, sol::lib::package);
-  auto parser = ParserLib::Parser();
-  auto automat = parser.parseAutomat(argv[1]);
-  Interpreter::Interpret interpreter(automat);
-  interpreter.Prepare();
-  std::cout << automat.transitions << std::endl;
-  std::cout << interpreter.transitionGroup << std::endl;
+  // sol::state lua{};
+  // lua.open_libraries(sol::lib::base, sol::lib::package);
+  // auto parser = ParserLib::Parser();
+  // auto automat = parser.parseAutomat(argv[1]);
+  // Interpreter::Interpret interpreter(automat);
+  // interpreter.Prepare();
+  // std::cout << automat.transitions << std::endl;
+  // std::cout << interpreter.transitionGroup << std::endl;
   // interpreter.Execute(false);
-  Interpreter::Interpret::simpleExample();
+  // Interpreter::Interpret<std::string>::simpleExample();
+  spdlog::info("Hello World");
+
   return 0;
 }
