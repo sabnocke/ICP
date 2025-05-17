@@ -5,6 +5,7 @@
 #include <absl/flags/flag.h>
 #include <absl/log/globals.h>
 #include <spdlog/spdlog.h>
+#include <absl/flags/flag.h>
 
 #include <cassert>
 #include <fstream>
@@ -57,10 +58,17 @@ void luaTest() {
   std::cout << x << std::endl;
 }
 
-int main(int argc, char** argv) {
+int main(const int argc, char** argv) {
   if (argc < 2) {
-    std::cerr << "Requires path to valid fsm definition" << std::endl;
+    spdlog::error("Requires path to valid fsm definition");
     return 1;
+  }
+  try {
+    spdlog::info("Hello World");
+  } catch (const Utils::ProgramTermination& pt) {
+    if (pt.lineNumber == -1)
+      spdlog::error(pt.what());
+    spdlog::error(absl::StrFormat("%s at %llu", pt.what(), pt.lineNumber));
   }
   // sol::state lua{};
   // lua.open_libraries(sol::lib::base, sol::lib::package);
@@ -72,7 +80,7 @@ int main(int argc, char** argv) {
   // std::cout << interpreter.transitionGroup << std::endl;
   // interpreter.Execute(false);
   // Interpreter::Interpret<std::string>::simpleExample();
-  spdlog::info("Hello World");
+
 
   return 0;
 }

@@ -26,9 +26,6 @@ add_executable(fsm
         fsm/ParserLib.cpp
         fsm/Utils.cpp
         fsm/main.cpp
-        fsm/types/transitions.cpp
-        fsm/types/variables.cpp
-        fsm/types/states.cpp
         fsm/Interpret.cpp
 )
 

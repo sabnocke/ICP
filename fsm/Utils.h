@@ -319,4 +319,22 @@ std::optional<std::string> FormatToString(const T &value) {
   return std::nullopt;
 }
 
+class ProgramTermination final : public std::exception {
+  std::string message;
+
+
+ public:
+  size_t lineNumber = -1;
+  explicit ProgramTermination(std::string &&msg) : message(std::move(msg)) {}
+  template <typename... Args>
+  explicit ProgramTermination(std::string_view fmt, Args... args) {
+    message = absl::StrFormat(fmt, args...);
+  }
+  ProgramTermination &Line(size_t lineN) {
+    lineNumber = lineN;
+    return *this;
+  }
+  const char *what() const noexcept override { return message.c_str(); }
+};
+
 }  // namespace Utils

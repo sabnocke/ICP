@@ -93,6 +93,23 @@ void Interpret::ChangeState(
   }
 }
 
+void Interpret::ChangeState(TransitionsReference<sol::protected_function>& tr) {
+  const auto first = tr.First();
+  timer.tock();
+  activeState = first.get().to;
+  spdlog::info("STATE: {}", activeState);
+  const auto [Name, Action] = stateGroupFunction.Find(activeState).First();
+  if (const auto result = Action(); result.valid()) {
+    // yay
+    auto r = sol::object(result[0]);
+    InterpretResult(r);
+  } else {
+    // aww
+    const sol::error err(result);
+    spdlog::error("Action execution error: {}", err.what());
+  }
+}
+
 void Interpret::LinkDelays() {
   //TODO finish this
   auto hasDelay = transitionGroup.WhereMut(
@@ -142,7 +159,7 @@ void Interpret::PrepareVariables() {
   }
 }
 
-void Interpret::PrepareStates() {
+void Interpret::PrepareStates() { // NOLINT(*-convert-member-functions-to-static)
   StateGroup<sol::protected_function> tg;
   auto new_states = stateGroup.Transform<sol::protected_function>(
       [this](const State<std::string>& tr) {
@@ -182,6 +199,11 @@ std::optional<sol::protected_function> Interpret::TestAndSet(
   }
 }
 
+/**
+ *
+ * @param result
+ * @return
+ */
 auto Interpret::ExtractBool(const sol::protected_function_result& result) {
   if (!result.valid()) {
     sol::error r_error = result;

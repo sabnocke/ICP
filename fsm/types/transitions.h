@@ -100,7 +100,6 @@ struct Transition {
         input(std::move(other.input)),
         delay(std::move(other.delay)),
         delayInt(other.delayInt) {
-    //! Ignore cond, but set everything else
     cond = T();
     Id = other.Id;
   }
@@ -187,23 +186,6 @@ struct Transition {
   }
 };
 
-// template <typename T>
-// struct remove_pointer_ref {
-//   using type = T;
-// };
-// template <typename T>
-// struct remove_pointer_ref<T*> : remove_pointer_ref<T> {};
-// template <typename T>
-// struct remove_pointer_ref<T&> : remove_pointer_ref<T> {};
-// template <typename T>
-// struct remove_pointer_ref<const T&> : remove_pointer_ref<T> {};
-// template <typename T>
-// struct remove_pointer_ref<std::unique_ptr<T>&> : remove_pointer_ref<T> {};
-// template <typename T>
-// struct remove_pointer_ref<const std::unique_ptr<T>&> : remove_pointer_ref<T> {};
-// template <typename T>
-// using underlying_type = typename remove_pointer_ref<T>::type;
-
 template <typename Type, template <typename...> class Args>
 struct is_specialization_of final : std::false_type {};
 
@@ -222,7 +204,7 @@ class TransitionsReference {
   using ElementType = std::reference_wrapper<Transition<T>>;
   using ContainerType = std::vector<ElementType>;
   ContainerType container;
-  bool split = false;
+  // bool split = false;
 
  public:
   explicit TransitionsReference(ContainerType&& coll)
@@ -238,6 +220,8 @@ class TransitionsReference {
   auto end() const { return container.end(); }
   auto size() const { return container.size(); }
 
+  auto First() { return container.front(); }
+
   void Add(Transition<T>& transition) {
     container.emplace_back(std::ref(transition));
   }
@@ -252,7 +236,9 @@ class TransitionsReference {
            ranges::to<TransitionsReference<T>>();
   }
   template <bool Split = false,
-  typename Result = std::conditional_t<Split, std::pair<TransitionsReference, TransitionsReference>, TransitionsReference>>
+            typename Result = std::conditional_t<
+                Split, std::pair<TransitionsReference, TransitionsReference>,
+                TransitionsReference>>
   [[nodiscard]]
   Result WhereMut(const std::function<bool(const Transition<T>&)>& pred) {
     auto adapted_pred = [&](const ElementType& el) {
@@ -337,9 +323,9 @@ class TransitionsReference {
 
   ElementType SmallestTimer() {
     auto min = container.front();
-    for (const auto& el : container) {
+    for (auto& el : container) {
       if (el.get().delayInt < min.get().delayInt) {
-        min = el.get();
+        min = el;
       }
     }
     return min;
@@ -368,12 +354,14 @@ class TransitionsReference {
   }
 
   template <typename Transformer>
+  [[deprecated]]
   auto Transform(Transformer transformer) const {
     auto n = container | ranges::views::transform(transformer);
     return TransitionsReference(n | ranges::to<ContainerType>());
   }
 
   template <typename Transformer>
+  [[deprecated]]
   auto TransformMut(Transformer transformer) {
     container = container | ranges::views::transform(transformer) |
                 ranges::to<ContainerType>();

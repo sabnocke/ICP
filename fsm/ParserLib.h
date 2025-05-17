@@ -177,6 +177,7 @@ namespace ParserLib {
                         AutomatLib::Automat &automat) const;
 
     Section ActualSection = Name;               /**< Aktuální zpracovávaná sekce */
+    size_t lineNumber = 0;
 
     std::unique_ptr<RE2> name_pattern_{};       /**< Regex pro jméno */
     std::unique_ptr<RE2> comment_pattern_{};    /**< Regex pro komentář */

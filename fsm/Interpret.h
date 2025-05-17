@@ -40,13 +40,15 @@ class Interpret {
 
   /// Seznam registrovaných vstupních signálů
   absl::btree_set<std::string> inputs = absl::btree_set<std::string>(_automat.inputs.begin(), _automat.inputs.end());
-  absl::node_hash_map<std::string, std::string> inputsValues;   //! might be unnecessary
+  [[deprecated]]absl::node_hash_map<std::string, std::string> inputsValues;
 
   /// Seznam registrovaných výstupních signálů
   std::vector<std::string> outputs = _automat.outputs;
-  absl::node_hash_map<std::string, std::string> outputsValues;  //! might be unnecessary
+  [[deprecated]]absl::node_hash_map<std::string, std::string> outputsValues;
 
   void ChangeState(const TransitionGroup<sol::protected_function>& tg);
+  void ChangeState(TransitionsReference<sol::protected_function>& tr);
+
   void LinkDelays();
 
   static void InterpretResult(sol::object& result);
