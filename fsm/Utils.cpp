@@ -1,6 +1,5 @@
 #include "Utils.h"
 
-// #include <fast_float/fast_float.h>
 #include "external/fast_float.h"
 #include <locale>
 #include <range/v3/all.hpp>
@@ -75,30 +74,4 @@ bool Contains(const std::string &str, const std::string_view view) {
     return false;
   return true;
 }
-
-[[deprecated]] std::optional<long long> AttemptIntegerConversion(const std::string &input) {
-  const auto first = input.data();
-  const auto last = input.data() + input.size();
-  long long value;
-
-  if (auto [ptr, ec] = fast_float::from_chars(first, last, value);
-      ec != std::errc() || ptr != last) {
-    return std::nullopt;
-  }
-
-  return value;
-}
-[[deprecated]] std::optional<double> AttemptDoubleConversion(const std::string &input) {
-  const auto first = input.data();
-  const auto last = input.data() + input.size();
-  double value;
-
-  if (auto [ptr, ec] = fast_float::from_chars(first, last, value);
-      ec != std::errc{} || ptr != last) {
-    return std::nullopt;
-  }
-
-  return value;
-}
-
 }  // namespace Utils

@@ -22,70 +22,13 @@
 #include <range/v3/all.hpp>
 #include <string>
 #include <vector>
+#include <iomanip>
 
 #include "external/fast_float.h"
-#include "types/numeric.h"
 
 namespace Utils {
-using namespace types;
 
 namespace detail {
-/**
- * @brief Trait kontrolující, zda je T typu std::string.
- */
-template <typename T>
-[[deprecated("ToString conversion is unused")]] struct is_std_string_impl
-    : std::is_same<std::string, std::decay_t<T>> {};
-template <typename T>
-[[deprecated("ToString conversion is unused")]]
-inline constexpr bool is_std_string_v = is_std_string_impl<T>::value;
-
-/**
- * @brief Trait kontrolující, zda je T typu std::string_view.
- */
-template <typename T>
-[[deprecated("ToString conversion is unused")]] struct is_std_string_view_impl
-    : std::is_same<std::string_view, std::decay_t<T>> {};
-template <typename T>
-[[deprecated("ToString conversion is unused")]]
-inline constexpr bool is_std_string_view_v = is_std_string_view_impl<T>::value;
-
-/**
- * @brief Trait kontrolující, zda je T C-string (char*, char[]).
- */
-template <typename T>
-[[deprecated("ToString conversion is unused")]] struct is_c_string_condition {
-  static constexpr bool value =
-      std::is_same_v<
-          char, std::remove_cv_t<std::remove_pointer_t<std::decay_t<T>>>> ||
-      (std::is_array_v<std::remove_reference_t<T>> &&
-       std::is_same_v<
-           char,
-           std::remove_cv_t<std::remove_extent_t<std::remove_reference_t<T>>>>);
-};
-template <typename T, bool V = is_c_string_condition<T>::value>
-[[deprecated("ToString conversion is unused")]]
-struct is_c_string_impl : std::false_type {};
-template <typename T>
-[[deprecated("ToString conversion is unused")]] struct is_c_string_impl<T, true>
-    : std::true_type {};
-template <typename T>
-[[deprecated("ToString conversion is unused")]]
-inline constexpr bool is_c_string_v = is_c_string_impl<T>::value;
-
-/**
- * @brief Trait kontrolující, zda lze typ T streamovat do std::ostream.
- */
-template <typename T, typename = void>
-[[deprecated("ToString conversion is unused")]] struct is_streamable_impl
-    : std::false_type {};
-template <typename T>
-[[deprecated("ToString conversion is unused")]] struct is_streamable_impl<
-    T, std::void_t<decltype(std::declval<std::ostream &>()
-                            << std::declval<const T &>())>> : std::true_type {};
-template <typename T>
-[[deprecated("ToString conversion is unused")]]
-inline constexpr bool is_streamable_v = is_streamable_impl<T>::value;
 
 template <typename T>
 inline constexpr bool IsNumeric =
@@ -246,8 +189,7 @@ inline std::string Quote(const std::string &str) {
  */
 template <typename T>
 std::optional<T> StringToNumeric(const std::string_view str) {
-  if constexpr (!std::disjunction_v<std::is_integral<T>,
-                                    std::is_floating_point<T>>)
+  if constexpr (!detail::IsNumeric<T>)
     return std::nullopt;
   if (auto v = internal::AttemptConversion<T>(str); v.has_value())
     return v.value();
@@ -262,67 +204,8 @@ bool FindAll(const std::string_view str, Args... args) {
   return ((str.find(args) != std::string::npos) && ...);
 }
 
-/**
- * @brief Pokusí se převést arbitrátní streamovatelný typ na std::string.
- * @tparam T Libovolný typ.
- */
-template <typename T>
-[[deprecated("ToString conversion is unused")]]
-std::optional<std::string> ToStringOpt(const T &value) {
-  using Decayed = std::decay_t<T>;
-  if constexpr (detail::is_std_string_v<Decayed>) {
-    return value;
-  }
-  if constexpr (detail::is_std_string_view_v<Decayed>) {
-    return std::string(value);
-  }
-  if constexpr (detail::is_c_string_v<Decayed>) {
-    if constexpr (std::is_pointer_v<Decayed>)
-      return value ? std::string(value) : std::string();
-    else
-      return std::string(value);
-  }
-  if constexpr (std::is_same_v<Decayed, bool>) {
-    std::ostringstream os;
-    os << std::boolalpha << value;
-    return os.str();
-  }
-  if constexpr (detail::is_streamable_v<Decayed>) {
-    std::ostringstream os;
-    os << value;
-    return os.str();
-  }
-  return std::nullopt;
-}
-
-/**
- * @brief Formátování hodnoty pomocí absl::StrFormat.
- */
-template <typename T>
-[[deprecated("ToString conversion is unused")]]
-std::optional<std::string> FormatToString(const T &value) {
-  using Decayed = std::decay_t<T>;
-  if constexpr (detail::is_std_string_v<Decayed> ||
-                detail::is_std_string_view_v<Decayed>) {
-    return absl::StrFormat("%s", value);
-  }
-  if constexpr (detail::is_c_string_v<Decayed>) {
-    if constexpr (std::is_pointer_v<Decayed> && value == nullptr)
-      return std::string();
-    else
-      return std::string(value);
-  }
-  if constexpr (std::is_arithmetic_v<Decayed> ||
-                std::is_same_v<Decayed, bool>) {
-    return absl::StrFormat("%v", value);
-  }
-  return std::nullopt;
-}
-
 class ProgramTermination final : public std::exception {
   std::string message;
-
-
  public:
   size_t lineNumber = -1;
   explicit ProgramTermination(std::string &&msg) : message(std::move(msg)) {}
@@ -330,11 +213,12 @@ class ProgramTermination final : public std::exception {
   explicit ProgramTermination(std::string_view fmt, Args... args) {
     message = absl::StrFormat(fmt, args...);
   }
-  ProgramTermination &Line(size_t lineN) {
+  ProgramTermination() = default;
+  ProgramTermination &Line(const size_t lineN) {
     lineNumber = lineN;
     return *this;
   }
-  const char *what() const noexcept override { return message.c_str(); }
+  [[nodiscard]] const char *what() const noexcept override { return message.c_str(); }
 };
 
 }  // namespace Utils
