@@ -12,85 +12,84 @@
 
 #pragma once
 
-
 #include <string>
 
 #include "ParserLib.h"
-#include "types/all_types.h"
 #include "external/sol.hpp"
+#include "types/all_types.h"
 
 namespace ParserLib {
-  struct TransitionRecord;  /**< Forward-declaration záznamu přechodu. */
-  struct VariableRecord;    /**< Forward-declaration záznamu proměnné. */
+struct TransitionRecord; /**< Forward-declaration záznamu přechodu. */
+struct VariableRecord;   /**< Forward-declaration záznamu proměnné. */
 }  // namespace ParserLib
 
 namespace AutomatLib {
-  using namespace types;
+using namespace types;
 
-  /**
+/**
    * @class Automat
    * @brief Reprezentuje konečný automat s jeho daty a generovanou implementací.
    */
-  class Automat {
-  public:
-    /**
+class Automat {
+ public:
+  /**
      * @brief Přidá nový stav podle jména a akce.
      * @param result dvojice (název stavu, text akce)
      */
-    void addState(const State<std::string> &result) {
-      states << result;
-    }
+  void addState(const State<std::string> &result) { states << result; }
 
-    /**
+  /**
      * @brief Přidá nový přechod.
      * @param result Záznam Transition.
      */
-    void addTransition(const Transition<> &result) { transitions << result; }
+  void addTransition(Transition<> result) {
+    transitions.Add(std::move(result));
+  }
 
-    /**
+  /**
      * @brief Přidá novou proměnnou.
      * @param result Záznam Variable.
      */
-    void addVariable(Variable result) {
-      variables.Add(std::move(result));
-      // variables << result;
-    }
+  void addVariable(Variable result) {
+    variables.Add(std::move(result));
+    // variables << result;
+  }
 
-    /**
+  /**
      * @brief Registruje vstupní signál.
      * @param name Název vstupu.
      */
-    void addInput(const std::string &name);
+  void addInput(const std::string &name);
 
-    /**
+  /**
      * @brief Registruje výstupní signál.
      * @param name Název výstupu.
      */
-    void addOutput(const std::string &name);
+  void addOutput(const std::string &name);
 
-    /// Název automatu
-    std::string Name;
+  /// Název automatu
+  std::string Name;
 
-    /// Kontejner stavů
-    StateGroup<> states;
+  /// Kontejner stavů
+  StateGroup<> states;
 
-    /// Kontejner přechodů
-    TransitionGroup<std::string> transitions;
+  /// Kontejner přechodů
+  TransitionGroup<std::string> transitions;
 
-    /// Seznam vstupů
-    std::vector<std::string> inputs;
+  /// Seznam vstupů
+  std::vector<std::string> inputs;
 
-    /// Seznam výstupů
-    std::vector<std::string> outputs;
+  /// Seznam výstupů
+  std::vector<std::string> outputs;
 
-    /// Kontejner proměnných
-    VariableGroup variables;
+  /// Kontejner proměnných
+  VariableGroup variables;
 
-    /// Název aktuálního stavu v době běhu
-    std::string currentState;
+  /// Název aktuálního stavu v době běhu
+  std::string currentState;
 
-    /// Integrovaný Lua interpreter (sol2)
-    sol::state lua{};
-  };
+  /// Integrovaný Lua interpreter (sol2)
+  sol::state lua{};
+};
 
 }  // namespace AutomatLib
