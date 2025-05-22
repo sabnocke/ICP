@@ -12,5 +12,4 @@
 
 #include "states.h"       /**< Definice State a StateGroup */  
 #include "transitions.h"  /**< Definice Transition a TransitionGroup */  
-#include "variables.h"    /**< Definice Variable a VariableGroup */  
-#include "numeric.h"      /**< Definice Numeric */  
+#include "variables.h"    /**< Definice Variable a VariableGroup */
