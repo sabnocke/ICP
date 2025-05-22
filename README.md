@@ -11,20 +11,26 @@ Repo for ICP project
 ## BUILD
 
 ### WINDOWS
-$env:VCPKG_ROOT = "C:\path\to\vcpkg"
-$env:QT_PREFIX = "C:\Qt\6.9.0\msvc2022_64"
+```shell
+$env:VCPKG_ROOT = "C:\path\to\vcpkg"  # unnecessary, set by cmake
+$env:QT_PREFIX = "C:\Qt\6.9.0\msvc2022_64" # dont know about this, but could be set by cmake too
+# technically unnecessary since cmake builds executable,
+# however not sure how it works with QT.
 mingw32-make
+```
 
 ### LINUX
+```shell
 export VCPKG_ROOT=/absolute/path/to/vcpkg
 export QT_PREFIX=/absolute/path/to/Qt/6.9.0/gcc_64
 make
+```
 
 ## Vcpkg Dependencies (more see fsm/readme.md)
 
 To install dependencies using vcpkg:
 
-```bash
+```shell
 git clone https://github.com/microsoft/vcpkg.git
 cd vcpkg
 
@@ -36,18 +42,15 @@ cd vcpkg
 ./vcpkg.exe integrate install
 
 # Install required packages
-./vcpkg.exe install abseil
-./vcpkg.exe install re2
-./vcpkg.exe install lua
-./vcpkg.exe install range-v3
-
+./vcpkg.exe install
+# Installation is handled by manifest
+```
 # Dependencies
-This project uses following external libraries
- - ~~[ctre](https://github.com/hanickadot/compile-time-regular-expressions/tree/main)~~
- - [reproc](https://github.com/DaanDeMeyer/reproc)
+This project uses following external libraries:
  - [abseil](https://abseil.io)
  - [re2](https://github.com/google/re2/tree/main)
- - [fast_float](https://github.com/fastfloat/fast_float)
+ - [fast_float](https://github.com/fastfloat/fast_float) 
  - [range-v3](https://github.com/ericniebler/range-v3)
- - [libzmq](https://github.com/zeromq/libzmq/tree/master)  << might get removed later
- - [zmgpp](https://github.com/zeromq/zmqpp/tree/develop)   << might get removed later
+ - [spdlog](https://github.com/gabime/spdlog)
+ - [sol2](https://github.com/ThePhD/sol2)
+ - [lua](https://www.lua.org)
