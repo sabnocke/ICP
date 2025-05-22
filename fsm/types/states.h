@@ -34,7 +34,7 @@ struct State {
       : Name(std::move(name)), Action(std::move(action)) {}
 };
 
-template <typename T>
+template <typename T = std::string>
 struct StateGroup {
  private:
   std::vector<State<T>> states;
@@ -107,8 +107,12 @@ struct StateGroup {
     }
     return os;
   }
-  [[nodiscard]] auto begin() const { return states.begin(); }
-  [[nodiscard]] auto end() const { return states.end(); }
+  [[nodiscard]] auto begin() { return states.begin(); }
+  [[nodiscard]] auto end() { return states.end(); }
+
+  [[nodiscard]] auto cbegin() const { return states.cbegin(); }
+  [[nodiscard]] auto cend() const { return states.cend(); }
+
   [[nodiscard]] auto empty() const { return states.empty(); }
 };
 }  // namespace types
