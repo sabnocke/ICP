@@ -19,7 +19,9 @@
 #include <absl/strings/str_format.h>
 #include <fmt/base.h>
 
+#include <algorithm>
 #include <functional>
+#include <iterator>
 #include <memory>
 #include <optional>
 #include <range/v3/all.hpp>
@@ -29,6 +31,15 @@
 #include <utility>
 
 #include "../Utils.h"
+
+//TODO are the moving shenanigans worth the hassle?
+//TODO is the cost of copying the group in each iteration so high that TR is worth it?
+//TODO maybe revert back to copying, moving and handling lifetime just takes too much time and makes the whole thing too complicated
+//TODO or figure out different way of not copying it so much (maybe since the examples won't be complex, copying is acceptable?)
+//TODO Where and coll. might instead of creating new copies create TG with different contained type
+//TODO enable_if then could give different implementation of certain functions
+//TODO thus removing the need for two classes and a lot of moving
+
 
 namespace types {
 
@@ -106,6 +117,19 @@ struct Transition {
 
   Transition() { Id = ++counter; }
 
+  /*Transition& operator=(Transition other) {
+    from = std::move(other.from);
+    to = std::move(other.to);
+    input = std::move(other.input);
+    delay = std::move(other.delay);
+    delayInt = other.delayInt;
+    Id = other.Id;
+    hasCondition = other.hasCondition;
+    return *this;
+  }*/
+  Transition(const Transition& other) = default;
+  Transition& operator=(const Transition& other) = default;
+
   Transition& operator=(Transition&& other) noexcept {
     if (this != &other) {
       from = std::move(other.from);
@@ -132,24 +156,30 @@ struct Transition {
     return *this;
   }
 
+  /*Transition Copy() const {
+    return Transition(from, to, input, cond, delay);
+    std::copy
+  }*/
+
   /*template <typename FromT>
   static Transition Convert(const Transition<FromT>& other) {
     using PureType = Utils::detail::remove_cvref_t<decltype(other)>;
     return ConvertMove<PureType>(other);
   }*/
 
-  template<typename FromT>
+  /*template <typename FromT>
   static Transition Convert(const Transition<FromT>& from) {
     return Convert<FromT>(Transition<FromT>(from));
-  }
+    // return Convert<FromT>(std::move(Utils::detail::remove_cvref<decltype(from)>::type));
+  }*/
 
   template <typename FromT>
-  static Transition Convert(Transition<FromT>&& other) {
+  static Transition Convert(const Transition<FromT>& other) {
     auto result = Transition<T>{};
-    result.from = std::move(other.from);
-    result.to = std::move(other.to);
+    result.from = other.from;
+    result.to = other.to;
     result.cond = T{};
-    result.delay = std::move(other.delay);
+    result.delay = other.delay;
     result.delayInt = other.delayInt;
     result.Id = other.Id;
 
@@ -167,9 +197,19 @@ struct Transition {
   }
 
   bool operator==(const Transition& transition) const {
-    return from == transition.from && to == transition.to &&
-           input == transition.input && cond == transition.cond &&
-           delay == transition.delay;
+    if (Id != transition.Id)
+      return false;
+    if (from != transition.from)
+      return false;
+    if (to != transition.to)
+      return false;
+    if (input != transition.input)
+      return false;
+    if (cond != transition.cond)
+      return false;
+    if (delay != transition.delay)
+      return false;
+    return true;
   }
   bool operator!=(const Transition& transition) const {
     return !(*this == transition);
@@ -205,9 +245,12 @@ inline constexpr bool is_smart_ptr =
 
 template <typename T>
 class TransitionsReference {
+ public:
   using PureType = T;
   using ElementType = std::reference_wrapper<Transition<T>>;
   using ContainerType = std::vector<ElementType>;
+
+ private:
   ContainerType container;
 
  public:
@@ -243,7 +286,8 @@ class TransitionsReference {
   }
 
   [[nodiscard]] std::optional<ElementType> First() const {
-    if (container.empty()) return std::nullopt;
+    if (container.empty())
+      return std::nullopt;
 
     return container.front();
   }
@@ -259,18 +303,52 @@ class TransitionsReference {
   [[nodiscard]]
   auto Where(const std::function<bool(const Transition<T>&)>& pred) const {
     return container | ranges::views::filter(pred) |
-           ranges::to<TransitionsReference<T>>();
+           ranges::to<TransitionsReference>();
   }
-  template <bool Split = false,
+  template <bool Split = false, typename Predicate,
+            typename ResultType = std::conditional_t<
+                Split, std::pair<TransitionsReference, TransitionsReference>,
+                TransitionsReference>>
+  [[nodiscard]]
+  ResultType WhereMut(Predicate&& pred) {
+    auto adapted_pred = [&](const ElementType& el) -> bool {
+      return pred(el.get());
+    };
+
+    if constexpr (Split) {
+      /*auto first = container | ranges::views::filter(adapted_pred) |
+                   ranges::to<TransitionsReference<T>>();
+      auto second = container | ranges::views::filter([&](const auto& elem) {
+                      return !pred(elem.get());
+                    }) |
+                    ranges::to<TransitionsReference<T>>();
+      return std::make_pair(first, second);*/
+      ContainerType first;
+      ContainerType second;
+      if (!container.empty()) {
+        first.reserve(container.size());
+        second.reserve(container.size());
+      }
+
+      std::partition_copy(container.begin(), container.end(),
+                          std::back_inserter(first),
+                          std::back_inserter(second),
+                          adapted_pred);
+      return std::make_pair(std::move(first), std::move(second));
+    } else {
+      auto view = container | ranges::views::filter(adapted_pred) |
+                  ranges::to<ContainerType>();
+      return TransitionsReference(std::move(view));
+    }
+  }
+
+  /*template <bool Split = false, typename Predicate,
             typename Result = std::conditional_t<
                 Split, std::pair<TransitionsReference, TransitionsReference>,
                 TransitionsReference>>
   [[nodiscard]]
   Result WhereMut(const std::function<bool(const Transition<T>&)>& pred) {
-    auto adapted_pred = [&](const ElementType& el) {
-      const auto tr = el.get();
-      return pred(tr);
-    };
+    auto adapted_pred = [&](const ElementType& el) { return pred(el.get()); };
 
     if constexpr (Split) {
       auto first = container | ranges::views::filter(adapted_pred) |
@@ -282,10 +360,10 @@ class TransitionsReference {
       return std::make_pair(first, second);
     } else {
       auto view = container | ranges::views::filter(adapted_pred) |
-                  ranges::to<TransitionsReference<T>>();
-      return view;
+                  ranges::to<ContainerType>();
+      return TransitionsReference(std::move(view));
     }
-  }
+  }*/
 
   auto WhereNone() {
     auto pred = [](const Transition<T>& tr) -> bool {
@@ -326,7 +404,7 @@ class TransitionsReference {
     return WhereMut<Split>(pred);
   }
 
-  template <typename U>
+  /*template <typename U>
   TransitionsReference<U> operator&(const TransitionsReference<U>& lhs,
                                     const TransitionsReference<U>& rhs) {
     absl::flat_hash_set<unsigned> lhs_ids;
@@ -345,7 +423,7 @@ class TransitionsReference {
       }
     }
     return result;
-  }
+  }*/
 
   std::optional<ElementType> SmallestTimer() const {
     if (container.empty())
@@ -390,14 +468,24 @@ class TransitionsReference {
     return *this;
   }
 
-  template <typename Action>
-  auto ForEach(Action action) {
+  auto ForEach(const std::function<void(Transition<T>&)>& action) {
     ranges::for_each(container, action);
     return *this;
   }
 
-  TransitionsReference operator&(const TransitionsReference& event) const {
-    return *this & event;
+  TransitionsReference operator&(const TransitionsReference& other) const {
+    auto final = ContainerType();
+    final.reserve(std::max(container.size(), other.container.size()));
+    auto small =
+        container.size() < other.container.size() ? container : other.container;
+    for (auto& el : small) {
+      if (const auto id = el.get().Id;
+          std::find(container.begin(), container.end(), el.get()) != container.end() &&
+          std::find(other.container.begin(), other.container.end(), el.get()) != other.container.end()) {
+        final.emplace_back(el);
+      }
+    }
+    return TransitionsReference(std::move(final));
   }
 };
 
@@ -407,30 +495,21 @@ class TransitionsReference {
  */
 template <typename T>
 class TransitionGroup {
-  using TGT = absl::btree_set<Transition<T>>;
+  template <typename T2>
+  using TransitionGroupType = absl::flat_hash_map<unsigned, Transition<T2>>;
 
- private:
-  TGT<T> _transitions;
-  absl::flat_hash_map<unsigned, Transition<>> primary{};
+  TransitionGroupType<T> primary{};
   absl::flat_hash_map<std::string, TransitionsReference<T>> index_by_from{};
-
-  TGTMap<T> _transition_groups{};
 
  public:
   TransitionGroup() = default;
-  TransitionGroup operator+=(const Transition<T>& tr) {
-    _transitions.insert(tr);
 
-    return *this;
-  }
   TransitionGroup& operator<<(const Transition<T>& tr) {
-    _transitions.insert(tr);
+    primary[tr.Id] = tr;
     return *this;
   }
-  explicit TransitionGroup(absl::btree_set<Transition<T>> transitions)
-      : _transitions(std::move(transitions)) {}
 
-  [[nodiscard]] size_t Size() const { return _transitions.size(); }
+  [[nodiscard]] size_t Size() const { return primary.size(); }
   [[nodiscard]] bool Some() const { return Size() != 0; }
   [[nodiscard]] bool None() const { return Size() == 0; }
   [[nodiscard]] bool IsEmpty() const { return Size() == 0; }
@@ -441,42 +520,34 @@ class TransitionGroup {
     return tg;
   }
 
-  [[deprecated]] auto Mutable() { return *this; }
-
-  void Add(const Transition<T>&& transition) {
-    // _transitions.insert(transition);
-
-    //! for now, just use unsigned as IndexT
-    // unsigned id = transition.Id;
+  void Add(Transition<T>&& transition) {
     primary[transition.Id] = std::move(transition);
     index_by_from[primary.at(transition.Id).from].Add(
         primary.at(transition.Id));
   }
 
-  TGTMap<T> GroupTransitions() {
-    TGTMap<T> transitions;
-    for (const auto& transition : _transitions) {
-      transitions[transition.from].Add(transition);
-    }
-    _transition_groups = transitions;
-    return transitions;
-  }
-  [[nodiscard]] absl::btree_set<Transition<T>> Get() const {
-    return _transitions;
-  };
-  TransitionGroup Retrieve(const std::string& input) {
-    if (_transition_groups.empty())
-      GroupTransitions();
+  explicit TransitionGroup(TransitionGroupType<T>&& transitions) {
+    if constexpr (ranges::sized_range<TransitionGroupType<T>>)
+      primary.reserve(ranges::size(transitions));
 
-    if (_transition_groups.contains(input))
-      return _transition_groups.at(input);
+    for (auto& [id, transition] : transitions) {
+      Add(std::move(transition));
+    }
+  }
+
+  TransitionsReference<T> Retrieve(const std::string& input) const {
+    if (index_by_from.empty())
+      //! Error
+
+      if (index_by_from.contains(input))
+        return index_by_from.at(input);
 
     return Empty();
   }
 
   TransitionsReference<T> RetrieveMut(const std::string_view input) {
     if (index_by_from.empty())
-      return TransitionsReference<T>{};  // ERROR or nah?
+      return TransitionsReference<T>{};  //! ERROR
 
     if (index_by_from.contains(input))
       return index_by_from.at(input);
@@ -487,32 +558,42 @@ class TransitionGroup {
   template <typename ResultT>
   TransitionGroup<ResultT> Transform(
       const std::function<Transition<ResultT>(Transition<T>)>& fun) {
-    auto it = _transitions | ranges::views::transform(fun);
-    const auto transitions = it | ranges::to<absl::btree_set<Transition<T>>>;
-    return TransitionGroup<ResultT>(transitions);
-  }
-  void TransformAction(const std::function<Transition<T>(Transition<T>)>& fun) {
-    TGT<T> n;
-    for (auto& tr : _transitions) {
-      n.insert(fun(tr));
-    }
-    _transitions = n;
+    auto transformed_pairs_view =
+        primary |
+        ranges::views::transform(
+            [&](const auto&
+                    pair_ref) {  // 'pair_ref' is const std::pair<const unsigned, Transition<T>>&
+              // const unsigned& original_id = pair_ref.first;
+              // const Transition<T>& original_transition = pair_ref.second;
+
+              const auto& [original_id, original_transition] = pair_ref;
+
+              Transition<ResultT> transformed_transition =
+                  fun(original_transition);
+
+              return std::make_pair(original_id,
+                                    std::move(transformed_transition));
+            });
+
+    auto new_primary = ranges::to<TransitionGroupType<ResultT>>();
+
+    return TransitionGroup<ResultT>(std::move(new_primary));
   }
 
+  //TODO this either doesn't work or steals the whole TG
   [[nodiscard]] TransitionsReference<T> WhereMut(
       const std::function<bool(Transition<T>&)>& pred) {
-    auto all = primary | ranges::views::values;
-    auto f = all | ranges::views::filter(pred);
+    auto f = primary | ranges::views::values | ranges::views::filter(pred);
     auto ref_f = f | ranges::views::transform(
-                         [](Transition<T>& t) { return std::ref(t); });
-    return ref_f | ranges::to<TransitionsReference<T>>;
+                         [](Transition<T>& t) { return std::ref(t); }) | ranges::to<TransitionsReference<T>::ContainerType>();
+    return TransitionsReference(ref_f);
   }
 
   [[nodiscard]] TransitionGroup Where(
       const std::function<bool(Transition<T>)>& pred) const {
     auto all_transitions = primary | ranges::views::values;
     auto it = all_transitions | ranges::views::filter(pred);
-    return TransitionGroup(it | ranges::to<decltype(_transitions)>);
+    return TransitionGroup(it | ranges::to<TransitionGroupType<T>>);
   }
   [[nodiscard]] TransitionGroup WhereNoEvent() const {
     return Where([](const auto& tr) { return tr.input.empty(); });
@@ -537,68 +618,26 @@ class TransitionGroup {
       return tr.cond.empty() && tr.delay.empty() && tr.input.empty();
     });
   }
-  [[nodiscard]] std::optional<Transition<T>> Smallest() const {
+  [[nodiscard]] std::optional<Transition<T>> SmallestTimer() const {
     const auto min = WhereTimer().First();
     if (!min.has_value())
       return std::nullopt;
     auto min_v = min.value().get();
-    for (auto& tr : _transitions) {
+    for (auto& [id, tr] : primary) {
       if (tr.delayInt < min_v.delayInt)
         min_v = tr;
     }
     return min_v;
   }
-  void Merge(TransitionGroup& trg) {
-    for (auto& tr : trg._transitions) {
-      if (auto pos = _transitions.find(tr); pos != _transitions.end()) {
-        _transitions.erase(pos);
-        _transitions.insert(tr);
-      } else
-        _transitions.insert(tr);
-    }
-  }
-  bool Contains(const Transition<T>& tr) {
-    auto f =
-        _transitions | ranges::views::filter([&tr](const auto& transition) {
-          return transition == tr;
-        });
-    return ranges::distance(f) == 1;
-  }
-  absl::btree_set<std::string> ExternalAdd(
-      const std::string_view externalName) {
-    absl::btree_set<std::string> ext;
-    for (auto& tr : _transitions) {
-      ext.insert(Format(externalName, tr));
-    }
-    return ext;
-  }
 
-  /// Attempts to retrieve "first" value from group
-  ///
-  /// First according to ordering of internal set
-  ///
-  /// Which begs for a question, do I need to remember order?
-  /// @return Reference to "first" item in the group
-  [[nodiscard]] std::optional<std::reference_wrapper<const Transition<T>>>
-  First() const {
-    if (_transitions.empty()) {
+  bool Contains(const Transition<T>& tr) { return primary.contains(tr.Id); }
+
+  [[nodiscard]] std::optional<std::reference_wrapper<Transition<T>>> First()
+      const {
+    if (primary.empty()) {
       return std::nullopt;
     }
-    return std::cref(*_transitions.begin());
-  }
-
-  friend std::ostream& operator<<(std::ostream& os, const TransitionGroup& tg) {
-    for (const auto& tr : tg.Get()) {
-      os << tr << std::endl;
-    }
-    return os;
-  }
-  std::string Out() {
-    std::stringstream ss;
-    for (const auto& tr : _transitions) {
-      ss << tr.to << " ";
-    }
-    return ss.str();
+    return std::cref(primary.begin()->second);
   }
 
   [[nodiscard]] auto begin() const {
@@ -607,7 +646,7 @@ class TransitionGroup {
   [[nodiscard]] auto end() const {
     return ranges::end(primary | ranges::views::values);
   }
-  [[nodiscard]] auto empty() const { return _transitions.empty(); }
+  [[nodiscard]] auto empty() const { return primary.empty(); }
 
  private:
   static std::string Format(const std::string_view name,
