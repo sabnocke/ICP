@@ -7,7 +7,7 @@
 #include "absl/strings/str_format.h"
 
 namespace types {
-template <typename T>
+template <typename T = std::string>
 struct State {
   static_assert(std::disjunction_v<std::is_same<T, std::string>,
                                    std::is_same<T, sol::protected_function>>,
