@@ -13,46 +13,23 @@
 
 #include <absl/container/btree_set.h>
 #include <absl/strings/str_format.h>
-
 #include <optional>
 #include <string>
 #include <utility>
-#include <variant>
-
 #include "../Utils.h"
-#include "numeric.h"
 
 namespace types {
 
+//! this is a bit unnecessary
 using TypeType = std::string;  /**< Alias pro typ proměnné. */
 using NameType = std::string;  /**< Alias pro název proměnné. */
 using ValueType = std::string; /**< Alias pro hodnotu proměnné jako string. */
 
 /**
- * @brief Trait pro detekci operátoru < mezi typy.
- */
-template <typename T, typename = void>
-[[deprecated("Original purpose is gone")]] struct has_less : std::false_type {};
-
-template <typename T>
-[[deprecated("Original purpose is gone")]] struct has_less<
-    T, std::void_t<decltype(std::declval<T &>() < std::declval<T &>())>>
-    : std::true_type {};
-
-template <typename T>
-[[deprecated("Original purpose is gone")]]
-inline constexpr bool has_less_v = has_less<T>::value;
-
-/**
- * @struct Variable
+ * @class Variable
  * @brief Uchovává informace o jedné proměnné.
  */
-struct Variable {
- private:
-  [[deprecated("Original purpose is gone")]]
-  std::variant<std::monostate, int, long long, float, double, std::string>
-      var_; /**< Interní hodnota */
-
+class Variable {
  public:
   /**
    * @brief Výchozí konstruktor.
@@ -123,11 +100,10 @@ struct Variable {
 };
 
 /**
- * @struct VariableGroup
+ * @class VariableGroup
  * @brief Kolekce proměnných s možností vkládání a vyhledávání.
  */
-struct VariableGroup {
- private:
+class VariableGroup {
   absl::btree_set<Variable> vars_; /**< Množina proměnných. */
 
  public:
@@ -146,11 +122,21 @@ struct VariableGroup {
   auto end() {return vars_.end();}
 
 
+  VariableGroup Add(Variable &&var) {
+    vars_.insert(std::move(var));
+    return *this;
+  }
+
   /**
    * @brief Přidá proměnnou do skupiny.
    */
   VariableGroup &operator<<(Variable&&var) {
     vars_.insert(std::move(var));
+    return *this;
+  }
+
+  VariableGroup &operator<<(const Variable &&var) {
+    vars_.insert(var);
     return *this;
   }
 
