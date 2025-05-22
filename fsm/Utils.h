@@ -146,11 +146,12 @@ inline std::string RemovePrefix(const std::string &str,
                                 const std::string_view view,
                                 const StringComparison cmp = Exact) {
   switch (cmp) {
-    case Lazy:
+    case Lazy: {
       const auto a = ToLower(str);
       if (const auto b = ToLower(view); !ranges::starts_with(a, b))
         return str;
       return str.substr(view.size());
+    }
     case Exact:
       if (!ranges::starts_with(str, view))
         return str;
@@ -205,20 +206,20 @@ bool FindAll(const std::string_view str, Args... args) {
 }
 
 class ProgramTermination final : public std::exception {
-  std::string message;
+  // std::string message;
  public:
-  size_t lineNumber = -1;
-  explicit ProgramTermination(std::string &&msg) : message(std::move(msg)) {}
-  template <typename... Args>
+  /*size_t lineNumber = -1;*/
+  /*explicit ProgramTermination(std::string &&msg) : message(std::move(msg)) {}*/
+  /*template <typename... Args>
   explicit ProgramTermination(std::string_view fmt, Args... args) {
     message = absl::StrFormat(fmt, args...);
-  }
+  }*/
   ProgramTermination() = default;
-  ProgramTermination &Line(const size_t lineN) {
+  /*ProgramTermination &Line(const size_t lineN) {
     lineNumber = lineN;
     return *this;
-  }
-  [[nodiscard]] const char *what() const noexcept override { return message.c_str(); }
+  }*/
+  /*[[nodiscard]] const char *what() const noexcept override { return message.c_str(); }*/
 };
 
 }  // namespace Utils
