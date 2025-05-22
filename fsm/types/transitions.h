@@ -48,12 +48,12 @@ template <typename T = std::string>
 struct Transition {
   using ContainedType = T;
 
-  std::string from;
-  std::string to;
-  std::string input;
-  T cond;
+  std::string from{};
+  std::string to{};
+  std::string input{};
+  T cond{};
   bool hasCondition = false;
-  std::string delay;
+  std::string delay{};
   int delayInt{};
   unsigned Id{};
 
@@ -83,7 +83,7 @@ struct Transition {
     Id = ++counter;
   }
 
-  Transition(std::string&& _from, std::string&& _to, std::string&& _input,
+  /*Transition(std::string&& _from, std::string&& _to, std::string&& _input,
              std::string&& _cond, std::string&& _delay)
       : from(std::move(_from)),
         to(std::move(_to)),
@@ -91,7 +91,7 @@ struct Transition {
         cond(std::move(_cond)),
         delay(std::move(_delay)) {
     Id = ++counter;
-  }
+  }*/
 
   template <typename OtherT>
   explicit Transition(Transition<OtherT>&& other)
@@ -104,10 +104,10 @@ struct Transition {
     Id = other.Id;
   }
 
-  Transition() = default;
+  Transition() { Id = ++counter; }
 
   Transition& operator=(Transition&& other) noexcept {
-    if (this != other) {
+    if (this != &other) {
       from = std::move(other.from);
       to = std::move(other.to);
       cond = std::move(other.cond);
@@ -120,10 +120,10 @@ struct Transition {
   }
   template <typename OtherT>
   Transition& operator=(Transition<OtherT>&& other) noexcept {
-    if (*this != other) {
+    if (this != &other) {
       from = std::move(other.from);
       to = std::move(other.to);
-      cond = T();
+      cond = T();  // <-- ensuring correct conversion here is unnecessary
       input = std::move(other.input);
       delay = std::move(other.delay);
       delayInt = other.delayInt;
@@ -132,10 +132,15 @@ struct Transition {
     return *this;
   }
 
-  template <typename FromT>
-  static Transition Convert(const FromT& other) {
+  /*template <typename FromT>
+  static Transition Convert(const Transition<FromT>& other) {
     using PureType = Utils::detail::remove_cvref_t<decltype(other)>;
-    return Convert<PureType>(other);
+    return ConvertMove<PureType>(other);
+  }*/
+
+  template<typename FromT>
+  static Transition Convert(const Transition<FromT>& from) {
+    return Convert<FromT>(Transition<FromT>(from));
   }
 
   template <typename FromT>
@@ -204,7 +209,6 @@ class TransitionsReference {
   using ElementType = std::reference_wrapper<Transition<T>>;
   using ContainerType = std::vector<ElementType>;
   ContainerType container;
-  // bool split = false;
 
  public:
   explicit TransitionsReference(ContainerType&& coll)
@@ -216,16 +220,38 @@ class TransitionsReference {
 
   [[nodiscard]] auto Some() const { return !container.empty(); }
 
-  auto begin() const { return container.begin(); }
-  auto end() const { return container.end(); }
+  auto begin() { return container.begin(); }
+  auto end() { return container.end(); }
+
+  auto cbegin() const { return container.cbegin(); }
+  auto cend() const { return container.cend(); }
+
   auto size() const { return container.size(); }
 
-  auto First() { return container.front(); }
+  /*template <bool Constant = false,
+            typename Result = std::conditional_t<
+                Constant, std::add_const<ElementType>, ElementType>>
+  Result First() {
+    return container.front();
+  }*/
+
+  [[nodiscard]] std::optional<ElementType> First() {
+    if (container.empty())
+      return std::nullopt;
+
+    return container.front();
+  }
+
+  [[nodiscard]] std::optional<ElementType> First() const {
+    if (container.empty()) return std::nullopt;
+
+    return container.front();
+  }
 
   void Add(Transition<T>& transition) {
     container.emplace_back(std::ref(transition));
   }
-  void Add(const std::reference_wrapper<Transition<T>>& element) {
+  void Add(const ElementType& element) {
     using PureRef = Utils::detail::remove_cvref_t<decltype(element)>;
     container.emplace_back(PureRef(element));
   }
@@ -270,7 +296,7 @@ class TransitionsReference {
     return WhereMut<>(pred);
   }
 
-  TransitionsReference<T> WhereCond() {
+  TransitionsReference WhereCond() {
     auto pred = [](const ElementType& tr) { return tr.get().hasCondition; };
     return WhereMut<>(pred);
   }
@@ -321,7 +347,10 @@ class TransitionsReference {
     return result;
   }
 
-  ElementType SmallestTimer() {
+  std::optional<ElementType> SmallestTimer() const {
+    if (container.empty())
+      return std::nullopt;
+
     auto min = container.front();
     for (auto& el : container) {
       if (el.get().delayInt < min.get().delayInt) {
@@ -331,6 +360,7 @@ class TransitionsReference {
     return min;
   }
 
+  [[deprecated]]
   auto Delay() {
     auto delayFinder = [](const auto& tr) {
       using RawType = Utils::detail::remove_cvref_t<decltype(tr)>;
@@ -342,6 +372,7 @@ class TransitionsReference {
     return WhereMut(delayFinder);
   }
 
+  [[deprecated]]
   auto FilterByState(const std::string_view view) {
     auto stateFinder = [view](const auto& tr) {
       using RawType = Utils::detail::remove_cvref_t<decltype(tr)>;
@@ -353,22 +384,19 @@ class TransitionsReference {
     return WhereMut(stateFinder);
   }
 
-  template <typename Transformer>
-  [[deprecated]]
-  auto Transform(Transformer transformer) const {
-    auto n = container | ranges::views::transform(transformer);
-    return TransitionsReference(n | ranges::to<ContainerType>());
-  }
-
-  template <typename Transformer>
-  [[deprecated]]
-  auto TransformMut(Transformer transformer) {
-    container = container | ranges::views::transform(transformer) |
-                ranges::to<ContainerType>();
+  auto TransformMut(
+      const std::function<Transition<T>(Transition<T>&)>& transformer) {
+    container | ranges::views::for_each(transformer);
     return *this;
   }
 
-  TransitionsReference<T> operator&(const TransitionsReference& event) const {
+  template <typename Action>
+  auto ForEach(Action action) {
+    ranges::for_each(container, action);
+    return *this;
+  }
+
+  TransitionsReference operator&(const TransitionsReference& event) const {
     return *this & event;
   }
 };
@@ -448,7 +476,7 @@ class TransitionGroup {
 
   TransitionsReference<T> RetrieveMut(const std::string_view input) {
     if (index_by_from.empty())
-      return TransitionsReference<T>{};  //ERROR
+      return TransitionsReference<T>{};  // ERROR or nah?
 
     if (index_by_from.contains(input))
       return index_by_from.at(input);
