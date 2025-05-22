@@ -25,27 +25,24 @@ namespace AutomatLib {
 namespace ParserLib {
   using namespace types;
 
-  /**
-   * @struct TransitionRecord
-   * @brief Reprezentuje jeden přechod načtený ze souboru.
-   */
-  [[deprecated("Use types::Transition instead")]]
+
+  /*[[deprecated("Use types::Transition instead")]]
   struct TransitionRecord {
-    std::string from;   /**< Výchozí stav */
-    std::string to;     /**< Cílový stav */
-    std::string input;  /**< Vstupní signál */
-    std::string cond;   /**< Podmínka */
-    std::string delay;  /**< Zpoždění */
+    std::string from;   /**< Výchozí stav #1#
+    std::string to;     /**< Cílový stav #1#
+    std::string input;  /**< Vstupní signál #1#
+    std::string cond;   /**< Podmínka #1#
+    std::string delay;  /**< Zpoždění #1#
 
     /**
      * @brief Vrátí prázdný záznam.
-     */
+     #1#
     static TransitionRecord Empty() { return {}; }
 
     /**
      * @brief Kontrola, zda je záznam prázdný.
      * @return true pokud se rovná prázdnému záznamu.
-     */
+     #1#
     [[nodiscard]] bool IsEmpty() const { return *this == Empty(); }
 
     bool operator==(const TransitionRecord &other) const {
@@ -59,23 +56,20 @@ namespace ParserLib {
 
     /**
      * @brief Výpis záznamu do streamu.
-     */
+     #1#
     friend std::ostream &operator<<(std::ostream &os, const TransitionRecord &tr) {
       os << absl::StrFormat("%s -> %s : on <%s> if <%s> after <%s>",
                             tr.from, tr.to, tr.input, tr.cond, tr.delay);
       return os;
     }
-  };
+  };*/
 
-  /**
-   * @struct VariableRecord
-   * @brief Reprezentuje jednu proměnnou načtenou ze souboru.
-   */
-  [[deprecated("Use types::Variable instead")]]
+
+  /*[[deprecated("Use types::Variable instead")]]
   struct VariableRecord {
-    std::string type;  /**< Datový typ proměnné */
-    std::string name;  /**< Název proměnné */
-    std::string value; /**< Počáteční hodnota jako string */
+    std::string type;  /**< Datový typ proměnné #1#
+    std::string name;  /**< Název proměnné #1#
+    std::string value; /**< Počáteční hodnota jako string #1#
 
     static VariableRecord Empty() { return {}; }
     [[nodiscard]] bool IsEmpty() const { return *this == Empty(); }
@@ -89,14 +83,14 @@ namespace ParserLib {
 
     /**
      * @brief Výpis záznamu proměnné do streamu.
-     */
+     #1#
     friend std::ostream &operator<<(std::ostream &os,
                                     const VariableRecord &record) {
       os << absl::StrFormat("%s: %s := %s",
                             record.name, record.type, record.value);
       return os;
     }
-  };
+  };*/
 
   /**
    * @enum Section
@@ -133,21 +127,19 @@ namespace ParserLib {
      * @param line Text řádku.
      * @return pair{název, kód akce} nebo nullopt.
      */
-    [[nodiscard]] std::optional<State<std::string>>
-      parseState(const std::string &line) const;
+    [[nodiscard]] State<std::string> parseState(const std::string &line) const;
 
     /**
      * @brief Zkusí rozparsovat proměnnou.
      * @param line Text řádku.
      */
-    [[nodiscard]] std::optional<Variable>
-      parseVariable(const std::string &line) const;
+    [[nodiscard]] Variable parseVariable(const std::string &line) const;
 
     /**
      * @brief Zkusí rozparsovat přechod.
      * @param line Text řádku.
      */
-    [[nodiscard]] std::optional<Transition<std::string>>
+    [[nodiscard]] Transition<>
       parseTransition(const std::string &line) const;
 
     /**
@@ -160,14 +152,12 @@ namespace ParserLib {
     /**
      * @brief Extrahuje jméno (Name nebo jakýkoliv text).
      */
-    [[nodiscard]] std::optional<std::string>
-      extractName(const std::string &line) const;
+    [[nodiscard]] std::string extractName(const std::string &line) const;
 
     /**
      * @brief Zparsuje signál (vstup nebo výstup).
      */
-    [[nodiscard]] std::optional<std::string>
-      parseSignal(const std::string &line) const;
+    [[nodiscard]] std::string parseSignal(const std::string &line) const;
 
   private:
     /**
