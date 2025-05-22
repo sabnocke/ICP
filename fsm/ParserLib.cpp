@@ -13,7 +13,8 @@
 //TODO remove NOTHING macro
 //TODO move DEFAULT_NAME as a const field into parser class
 //TODO remove commented out code
-//TODO change std::cerr to ProgramTermination
+//TODO change std::cerr to ProgramTermination + spdlog
+//TODO that might simplify ProgramTermination itself
 
 #define DEFAULT_NAME "Unknown"
 #define NOTHING std::nullopt
@@ -217,7 +218,7 @@ std::optional<Variable> Parser::parseVariable(const std::string &line) const {
     return Variable{(std::move(type)), (std::move(name)), (std::move(value))};
   }
   // spdlog::error("Malformed variable definition: {}", trimmed);
-  throw new Utils::ProgramTermination("[%lu] Malformed variable definition: %s",
+  throw Utils::ProgramTermination("[%lu] Malformed variable definition: %s",
                                       lineNumber, line);
   // return NOTHING;
 }
