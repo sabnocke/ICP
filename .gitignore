@@ -48,3 +48,4 @@ cmake-build-debug-visual-studio/
 
 vcpkg
 vcpkg_installed
+.luarc.json
