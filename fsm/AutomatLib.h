@@ -12,7 +12,7 @@
 
 #pragma once
 
-#include <absl/strings/str_join.h>
+
 #include <string>
 
 #include "ParserLib.h"
@@ -45,14 +45,15 @@ namespace AutomatLib {
      * @brief Přidá nový přechod.
      * @param result Záznam Transition.
      */
-    void addTransition(const Transition<std::string> &result) { transitions << result; }
+    void addTransition(const Transition<> &result) { transitions << result; }
 
     /**
      * @brief Přidá novou proměnnou.
      * @param result Záznam Variable.
      */
-    void addVariable(const Variable &result) {
-      variables << result;
+    void addVariable(Variable result) {
+      variables.Add(std::move(result));
+      // variables << result;
     }
 
     /**
@@ -70,24 +71,8 @@ namespace AutomatLib {
     /// Název automatu
     std::string Name;
 
-    /// Komentář automatu (z textu)
-    std::string Comment;
-
-    /** @name Metody pro generování kódu */
-    ///@{
-    // void PrepareHelperVariables();
-    void PrepareStateActions() const;
-    // void PrepareVariables();
-    // void PrepareTransitions();
-    // void PrepareExecuteFunction();
-    // void PrepareUtilsFunctions();
-    // void PrepareSignals();
-    // void LinkDelays();
-    // void Create();
-    ///@}
-
     /// Kontejner stavů
-    StateGroup states;
+    StateGroup<> states;
 
     /// Kontejner přechodů
     TransitionGroup<std::string> transitions;
