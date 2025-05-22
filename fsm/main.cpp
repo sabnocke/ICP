@@ -1,11 +1,10 @@
 
-#include <absl/strings/str_format.h>
+#include <absl/flags/flag.h>
 #include <absl/log/absl_log.h>
-#include <absl/log/initialize.h>
-#include <absl/flags/flag.h>
 #include <absl/log/globals.h>
+#include <absl/log/initialize.h>
+#include <absl/strings/str_format.h>
 #include <spdlog/spdlog.h>
-#include <absl/flags/flag.h>
 
 #include <cassert>
 #include <fstream>
@@ -19,20 +18,16 @@
 
 void parserTest() {
   ParserLib::Parser parser;
-  if (auto res = parser.parseState("IDLE : [ output(\"out\", 0) ]");
-      res.has_value()) {
-    auto [name, cond] = res.value();
-    std::cout << absl::StrFormat("state %s has action %s\n", name, cond);
-  }
-  if (auto res = parser.parseVariable("    int timeout = 5000");
-      res.has_value()) {
-    std::cout << res.value() << std::endl;
-  }
-  if (auto res = parser.parseTransition(
-          "    IDLE --> ACTIVE: in [ atoi(valueof(\"in\")) == 1 ]");
-      res.has_value()) {
-    std::cout << res.value() << std::endl;
-  }
+
+  auto [name, cond] = parser.parseState("IDLE : [ output(\"out\", 0) ]");
+  std::cout << absl::StrFormat("state %s has action %s\n", name, cond);
+
+  std::cout << parser.parseVariable("    int timeout = 5000") << std::endl;
+
+  auto res = parser.parseTransition(
+      "    IDLE --> ACTIVE: in [ atoi(valueof(\"in\")) == 1 ]");
+  std::cout << res << std::endl;
+
   std::cout << Utils::Quote("IDLE : { output(\"out\", 0) }") << std::endl;
 
   //? Get is necessary for getting the value if conv was directly printed it would output correctly 10
@@ -62,15 +57,13 @@ void luaTest() {
 
 int main(const int argc, char** argv) {
   if (argc < 2) {
-    spdlog::error("Requires path to valid fsm definition");
+    spdlog::critical("Requires path to valid fsm definition");
     return 1;
   }
   try {
     spdlog::info("Hello World");
-  } catch (const Utils::ProgramTermination& pt) {
-    if (pt.lineNumber == -1)
-      spdlog::error(pt.what());
-    spdlog::error(absl::StrFormat("%s at %llu", pt.what(), pt.lineNumber));
+  } catch (const Utils::ProgramTermination) {
+    return 1;
   }
   // sol::state lua{};
   // lua.open_libraries(sol::lib::base, sol::lib::package);
@@ -82,7 +75,6 @@ int main(const int argc, char** argv) {
   // std::cout << interpreter.transitionGroup << std::endl;
   // interpreter.Execute(false);
   // Interpreter::Interpret<std::string>::simpleExample();
-
 
   return 0;
 }
