@@ -11,13 +11,12 @@
 
 //TODO change the transition (and potentially states) to functions, compile them ahead via lua.load(...)
 //TODO and store the as protected_functions in some friend container (TransitionGroup if remade with generics is good contender)
+//? I probably already did this
 //TODO same for state actions
 //TODO maybe try to split the Execute logic
-//TODO try to implement ability to watch multiple events (input, timer)
 //TODO remove the std::move for lua state, state will be build directly in interpreter
 //TODO do a more robust error detection and recovery
 //TODO ^ for all parts of project (automat, parser, interpreter)
-//TODO create a lua file that would contain useful functions (in a way, behave like a stdlib)
 
 namespace Interpreter {
 void Interpret::simpleExample() {
@@ -51,6 +50,7 @@ Interpret::Interpret(AutomatLib::Automat&& automat)
 }
 
 void Interpret::InterpretResult(sol::object& result) {
+  //TODO this should return something or give the result in some other way
   auto type = result.get_type();
   spdlog::debug("Detected type is {}", type);
 
@@ -89,14 +89,22 @@ void Interpret::ChangeState(
     } else {
       // aww
       spdlog::debug("Action undefined");
+      //TODO error here
     }
   }
+  //TODO else error here (or flip the if)
 }
 
 void Interpret::ChangeState(TransitionsReference<sol::protected_function>& tr) {
   const auto first = tr.First();
   timer.tock();
-  activeState = first.get().to;
+  if (first.has_value()) {
+    activeState = first.value().get().to;
+  } else {
+    spdlog::critical("No next state found, but expected one");
+    throw Utils::ProgramTermination();
+  }
+
   spdlog::info("STATE: {}", activeState);
   const auto [Name, Action] = stateGroupFunction.Find(activeState).First();
   if (const auto result = Action(); result.valid()) {
@@ -107,6 +115,7 @@ void Interpret::ChangeState(TransitionsReference<sol::protected_function>& tr) {
     // aww
     const sol::error err(result);
     spdlog::error("Action execution error: {}", err.what());
+    throw Utils::ProgramTermination();
   }
 }
 
@@ -115,15 +124,15 @@ void Interpret::LinkDelays() {
   auto hasDelay = transitionGroup.WhereMut(
       [](const Transition<>& tr) { return !tr.delay.empty(); });
 
-  if (hasDelay.None())
+  if (hasDelay.None()) //TODO add info print here and repeat this logic later on
     return;
 
-  for (auto v : variableGroup.Get()) {
+  for (auto v : variableGroup) {
     auto mod = hasDelay.WhereMut(
         [v](const Transition<>& tr) { return tr.delay == v.Name; });
 
     if (auto val = TestAndSetValue<int>(v.Value); val.has_value()) {
-      mod.TransformMut([val](auto& tr) {
+      /*mod.TransformMut([val](auto& tr) {
         using RawType = Utils::detail::remove_cvref_t<decltype(tr)>;
         if constexpr (std::is_pointer_v<RawType> || is_smart_ptr<RawType>) {
           tr->delayInt = val.value();
@@ -131,7 +140,14 @@ void Interpret::LinkDelays() {
         }
         tr.delayInt = val.value();
         return tr;
+      });*/
+      mod.ForEach([val](Transition<>& tr) {
+        tr.delayInt = val.value();
+        return tr;
       });
+      /*for (auto item: mod) {
+        item.get
+      }*/
     }
   }
 }
@@ -241,6 +257,7 @@ void Interpret::PrepareTransitions() {
       ntg.Add(std::move(ntr));
     } else {
       //! in case of complete failure skip the transition? or stop completely?
+      //TODO probably just throw error
       spdlog::warn(
           "Skipping transition: {} -> {}; Error in lua runtime or missing "
           "correct definition",
@@ -253,12 +270,10 @@ void Interpret::PrepareTransitions() {
 void Interpret::PrepareSignals() {
   for (auto& signal : inputs) {
     lua["Inputs"][signal] = "";
-    // inputsValues[signal] = ""; // can do this without using external containers
   }
   std::cout << std::endl;
   for (auto& signal : outputs) {
     lua["Outputs"][signal] = "";
-    // outputsValues[signal] = "";
   }
 }
 
@@ -270,6 +285,7 @@ void Interpret::Prepare() {
   PrepareSignals();
 }
 
+[[deprecated("Not safe when handling strings, use ExtractBool or InterpretResult")]]
 bool StringToBool(const std::string& str) {
   const auto lower = Utils::ToLower(str);
   std::istringstream stream(lower);
@@ -290,6 +306,7 @@ std::string Interpret::ExtractInput(const std::string& line) {
   auto value = Utils::Trim(s[1]);
   if (!inputs.contains(name)) {
     spdlog::error("Cannot dynamically define new signals");
+    //TODO terminate or not?
     return {};
   }
   lua["Inputs"][name] = value;
@@ -321,6 +338,7 @@ std::pair<int, std::string> Interpret::ParseStdinInput(
   }
   if (Utils::Contains(line, "log")) {
     //! Currently not implemented
+    //TODO should i do it?
   }
   return {0, ""};
 }
@@ -335,7 +353,7 @@ int Interpret::Execute() {
       std::cout << "Active state: " << activeState << std::endl;
       auto transitions = transitionGroupFunction.RetrieveMut(activeState);
       if (transitions.None())
-        continue;  // exit is better
+        continue;  //TODO exit is better
       // std::cout << "Possible next states: " << std::endl
       //           << transitions.Out() << std::endl;
       // Find all free transitions
@@ -363,28 +381,12 @@ int Interpret::Execute() {
       // Find all transitions that have condition, but no input
       if (auto r = event_false; r.Some()) {
         // set timer for smallest delay transition
-        /*
-      * can the timer influence where to go?
-      * if timer starts and input is registered should I continue with timer or input?
-      */
-        /*
-      * this is a trick as according to above timer is decisive and
-      * at any time there would be more than one timer
-      * and both are started at the same time, the timer with smaller delay will always end first.
-      *
-      * because of these two assumptions, I am allowed to do this
-      */
-        auto smallest = r.SmallestTimer().get();
-        auto duration = std::chrono::milliseconds(smallest.delayInt);
-        std::this_thread::sleep_for(duration);
-        ChangeState(r);
-        continue;
-        /*if (auto smallest = r.Smallest(); smallest.has_value()) {
-          auto duration = std::chrono::milliseconds(smallest.value().delayInt);
+        if (auto smallest = r.SmallestTimer(); smallest.has_value()) {
+          auto duration = std::chrono::milliseconds(smallest.value().get().delayInt);
           std::this_thread::sleep_for(duration);
           ChangeState(r);
           continue;
-        }*/
+        }
       }
       if (auto r = event_true; r.Some()) {
         std::string line;
@@ -417,7 +419,7 @@ int Interpret::Execute() {
         }
       }
     }
-  } catch (const std::exception& e) {
+  } catch (const std::exception& e) { //TODO remove this as it can interfere with error handling. Or maybe change it?
     spdlog::error(e.what());
     return 1;
   }
