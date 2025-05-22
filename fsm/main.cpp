@@ -15,6 +15,8 @@
 #include "ParserLib.h"
 #include "external/sol.hpp"
 
+//TODO add log sink to a file
+
 void parserTest() {
   ParserLib::Parser parser;
   if (auto res = parser.parseState("IDLE : [ output(\"out\", 0) ]");
