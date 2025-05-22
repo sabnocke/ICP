@@ -42,10 +42,10 @@ Interpret::Interpret(AutomatLib::Automat&& automat)
     : _automat(std::move(automat)) {
   lua.open_libraries(sol::lib::base);
   lua["elapsed"] = [&]() { return timer.elapsed(); };
-  if (auto file = lua.script_file("stdlib.lua"); !file.valid) {
+  if (const auto file = lua.script_file("stdlib.lua"); !file.valid()) {
     const sol::error err = file;
     spdlog::error("Failed to open stdlib.lua: {}", err.what());
-    exit(1);
+    throw Utils::ProgramTermination();
   }
 }
 
@@ -54,28 +54,28 @@ void Interpret::InterpretResult(sol::object& result) {
   auto type = result.get_type();
   spdlog::debug("Detected type is {}", type);
 
-  if (result.is<bool>) {
+  if (result.is<bool>()) {
     bool value = result.as<bool>();
     spdlog::debug("Interpreted as bool: {}", value);
-  } else if (result.is<int>) {
+  } else if (result.is<int>()) {
     int value = result.as<int>();
     spdlog::debug("Interpreted as int: {}", value);
-  } else if (result.is<double>) {
+  } else if (result.is<double>()) {
     spdlog::debug("Interpreted as double: {}", result.as<double>());
-  } else if (result.is<std::string>) {
+  } else if (result.is<std::string>()) {
     spdlog::debug("Interpreted as string: {}", result.as<std::string>());
-  } else if (result.is<sol::table>) {
+  } else if (result.is<sol::table>()) {
     spdlog::debug("Interpreted as table");
-  } else if (result.is<sol::function>) {
+  } else if (result.is<sol::function>()) {
     spdlog::debug("Interpreted as function");
-  } else if (result.is<sol::type::nil>) {
+  } else if (result.is<sol::nil_t>()) {
     spdlog::debug("Interpreted as nil");
   } else {
     spdlog::debug("Interpretation undefined");
   }
 }
-//TODO modify this to accept reference instead of group
-void Interpret::ChangeState(
+
+/*void Interpret::ChangeState(
     const TransitionGroup<sol::protected_function>& tg) {
   if (const auto t = tg.First(); t.has_value()) {
     timer.tock();
@@ -89,11 +89,9 @@ void Interpret::ChangeState(
     } else {
       // aww
       spdlog::debug("Action undefined");
-      //TODO error here
     }
   }
-  //TODO else error here (or flip the if)
-}
+}*/
 
 void Interpret::ChangeState(TransitionsReference<sol::protected_function>& tr) {
   const auto first = tr.First();
@@ -113,7 +111,7 @@ void Interpret::ChangeState(TransitionsReference<sol::protected_function>& tr) {
     InterpretResult(r);
   } else {
     // aww
-    const sol::error err(result);
+    const sol::error err = result;
     spdlog::error("Action execution error: {}", err.what());
     throw Utils::ProgramTermination();
   }
@@ -131,6 +129,9 @@ void Interpret::LinkDelays() {
     auto mod = hasDelay.WhereMut(
         [v](const Transition<>& tr) { return tr.delay == v.Name; });
 
+    if (mod.None())
+      continue;
+
     if (auto val = TestAndSetValue<int>(v.Value); val.has_value()) {
       /*mod.TransformMut([val](auto& tr) {
         using RawType = Utils::detail::remove_cvref_t<decltype(tr)>;
@@ -141,13 +142,13 @@ void Interpret::LinkDelays() {
         tr.delayInt = val.value();
         return tr;
       });*/
-      mod.ForEach([val](Transition<>& tr) {
+      /*mod.ForEach([val](Transition<>& tr) {
         tr.delayInt = val.value();
         return tr;
-      });
-      /*for (auto item: mod) {
-        item.get
-      }*/
+      });*/
+      for (auto item: mod) {
+        item.get().delayInt = val.value();
+      }
     }
   }
 }
@@ -220,7 +221,7 @@ std::optional<sol::protected_function> Interpret::TestAndSet(
  * @param result
  * @return
  */
-auto Interpret::ExtractBool(const sol::protected_function_result& result) {
+bool Interpret::ExtractBool(const sol::protected_function_result& result) {
   if (!result.valid()) {
     sol::error r_error = result;
     spdlog::error("Lua runtime error during function call: {}", r_error);
@@ -399,22 +400,22 @@ int Interpret::Execute() {
 
         if (auto r1 = event_true & timer_false; r.Some()) {
           // All transitions with input but no timer
-          auto inputs = r1.Where(
+          auto inputs = r1.WhereMut(
               [signalName](const Transition<sol::protected_function>& tr) {
                 return tr.input == signalName;
               });
-          spdlog::debug("TransitionGroup: {}", inputs.Out());
+          // spdlog::debug("TransitionGroup: {}", inputs.Out());
           ChangeState(inputs);
           continue;
         }
         if (auto r2 = event_true & timer_true; r2.Some()) {
           // All transitions with input and timer
           //TODO missing waiting
-          auto inputs = r2.Where(
+          auto inputs = r2.WhereMut(
               [signalName](const Transition<sol::protected_function>& tr) {
                 return tr.input == signalName;
               });
-          spdlog::debug("TransitionGroup: {}", inputs.Out());
+          // spdlog::debug("TransitionGroup: {}", inputs.Out());
           ChangeState(inputs);
         }
       }
