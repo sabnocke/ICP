@@ -75,25 +75,32 @@ void Interpret::InterpretResult(sol::object& result) {
   }
 }
 
-/*void Interpret::ChangeState(
+void Interpret::ChangeState(
     const TransitionGroup<sol::protected_function>& tg) {
-  if (const auto t = tg.First(); t.has_value()) {
-    timer.tock();
-    activeState = t.value().get().to;
-    std::cout << "STATE: " << activeState << std::endl;
-    const auto [Name, Action] = stateGroupFunction.Find(activeState).First();
-    if (const auto result = Action(); result.valid()) {
-      // yay
-      auto r = sol::object(result[0]);
-      InterpretResult(r);
-    } else {
-      // aww
-      spdlog::debug("Action undefined");
-    }
-  }
-}*/
 
-void Interpret::ChangeState(TransitionsReference<sol::protected_function>& tr) {
+  timer.tock();
+
+  if (const auto t = tg.First(); t.has_value()) {
+    activeState = t.value().to;
+  } else {
+    spdlog::critical("No next state found, but expected one");
+    throw Utils::ProgramTermination();
+  }
+  std::cout << "STATE: " << activeState << std::endl;
+  const auto [Name, Action] = stateGroupFunction.Find(activeState).First();
+  if (const auto result = Action(); result.valid()) {
+    // yay
+    auto r = sol::object(result[0]);
+    InterpretResult(r);
+  } else {
+    // aww
+    const sol::error err = result;
+    spdlog::error("Action execution error: {}", err.what());
+    throw Utils::ProgramTermination();
+  }
+}
+
+/*void Interpret::ChangeState(TransitionsReference<sol::protected_function>& tr) {
   const auto first = tr.First();
   timer.tock();
   if (first.has_value()) {
@@ -115,7 +122,7 @@ void Interpret::ChangeState(TransitionsReference<sol::protected_function>& tr) {
     spdlog::error("Action execution error: {}", err.what());
     throw Utils::ProgramTermination();
   }
-}
+}*/
 
 void Interpret::LinkDelays() {
   //TODO finish this
@@ -352,7 +359,7 @@ int Interpret::Execute() {
     while (running) {
       // First find all reachable transitions from current transition
       std::cout << "Active state: " << activeState << std::endl;
-      auto transitions = transitionGroupFunction.RetrieveMut(activeState);
+      auto transitions = transitionGroupFunction.Retrieve(activeState);
       if (transitions.None())
         continue;  //TODO exit is better
       // std::cout << "Possible next states: " << std::endl
@@ -363,9 +370,22 @@ int Interpret::Execute() {
         ChangeState(r);
         continue;
       }
-      auto transitionsCond = transitions.WhereCond();
+      decltype(transitions) transitionsCond;
+      for (auto& transition : transitions) {
+        if (!transition.hasCondition) {
+          continue;
+        }
+        if (auto r = transition.cond(); r.valid() && ExtractBool(r)) {
+          transitionsCond << transition;
+        } else if (r.valid()) {
+        } else {
+          sol::error err = r;
+          spdlog::critical("Encountered unexpected error: {}", err.what());
+          throw Utils::ProgramTermination();
+        }
+      }
 
-      auto condTrue =
+      /*auto condTrue =
           TransitionsReference<decltype(transitionsCond)::PureType>{};
       for (auto& transition : transitionsCond) {
         if (auto cond = transition.get().cond();
@@ -375,15 +395,15 @@ int Interpret::Execute() {
           spdlog::warn("Error retrieving value from function");
           continue;
         }
-      }
+      }*/
 
-      auto [event_true, event_false] = condTrue.WhereEvent<true>();
-      auto [timer_true, timer_false] = condTrue.WhereTimer<true>();
+      auto [event_true, event_false] = transitionsCond.WhereEvent<true>();
+      auto [timer_true, timer_false] = transitionsCond.WhereTimer<true>();
       // Find all transitions that have condition, but no input
       if (auto r = event_false; r.Some()) {
         // set timer for smallest delay transition
         if (auto smallest = r.SmallestTimer(); smallest.has_value()) {
-          auto duration = std::chrono::milliseconds(smallest.value().get().delayInt);
+          auto duration = std::chrono::milliseconds(smallest.value().delayInt);
           std::this_thread::sleep_for(duration);
           ChangeState(r);
           continue;
@@ -400,7 +420,7 @@ int Interpret::Execute() {
 
         if (auto r1 = event_true & timer_false; r.Some()) {
           // All transitions with input but no timer
-          auto inputs = r1.WhereMut(
+          auto inputs = r1.Where(
               [signalName](const Transition<sol::protected_function>& tr) {
                 return tr.input == signalName;
               });
@@ -411,7 +431,7 @@ int Interpret::Execute() {
         if (auto r2 = event_true & timer_true; r2.Some()) {
           // All transitions with input and timer
           //TODO missing waiting
-          auto inputs = r2.WhereMut(
+          auto inputs = r2.Where(
               [signalName](const Transition<sol::protected_function>& tr) {
                 return tr.input == signalName;
               });
