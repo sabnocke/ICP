@@ -13,17 +13,14 @@
 
 #include <absl/container/btree_set.h>
 #include <absl/strings/str_format.h>
+
 #include <optional>
 #include <string>
 #include <utility>
+
 #include "../Utils.h"
 
 namespace types {
-
-//! this is a bit unnecessary
-using TypeType = std::string;  /**< Alias pro typ proměnné. */
-using NameType = std::string;  /**< Alias pro název proměnné. */
-using ValueType = std::string; /**< Alias pro hodnotu proměnné jako string. */
 
 /**
  * @class Variable
@@ -45,9 +42,9 @@ class Variable {
   Variable(std::string &&type, std::string &&name, std::string &&value)
       : Type(std::move(type)), Name(std::move(name)), Value(std::move(value)) {}
 
-  TypeType Type;   /**< Datový typ proměnné. */
-  NameType Name;   /**< Název proměnné. */
-  ValueType Value; /**< Hodnota proměnné jako string. */
+  std::string Type;   /**< Datový typ proměnné. */
+  std::string Name;   /**< Název proměnné. */
+  std::string Value; /**< Hodnota proměnné jako string. */
 
   /**
    * @brief Výčet podporovaných typů pro extrakci.
@@ -75,7 +72,7 @@ class Variable {
   /**
    * @brief Vrací tuple {Type, Name, Value}.
    */
-  [[nodiscard]] std::tuple<TypeType, NameType, ValueType> Tuple() const {
+  [[nodiscard]] std::tuple<std::string, std::string, std::string> Tuple() const {
     return std::make_tuple(Type, Name, Value);
   }
 
@@ -117,10 +114,8 @@ class VariableGroup {
    */
   [[nodiscard]] absl::btree_set<Variable> Get() const { return vars_; }
 
-
-  auto begin() {return vars_.begin();}
-  auto end() {return vars_.end();}
-
+  auto begin() { return vars_.begin(); }
+  auto end() { return vars_.end(); }
 
   VariableGroup Add(Variable &&var) {
     vars_.insert(std::move(var));
@@ -130,12 +125,17 @@ class VariableGroup {
   /**
    * @brief Přidá proměnnou do skupiny.
    */
-  VariableGroup &operator<<(Variable&&var) {
+  VariableGroup &operator<<(Variable &&var) {
     vars_.insert(std::move(var));
     return *this;
   }
 
   VariableGroup &operator<<(const Variable &&var) {
+    vars_.insert(var);
+    return *this;
+  }
+
+  VariableGroup &operator<<(const Variable &var) {
     vars_.insert(var);
     return *this;
   }
