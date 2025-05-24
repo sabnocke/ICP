@@ -163,6 +163,24 @@ void Interpret::
   stateGroupFunction = new_states;
 }
 
+TransitionGroup<sol::protected_function> Interpret::WhenConditionTrue(const TransitionGroup<sol::protected_function>& group) {
+  TransitionGroup<sol::protected_function> on_true;
+  for (const auto& [id, transition] : group.primary) {
+    if (!transition.hasCondition)
+      continue;
+
+    if (auto r = transition.cond(); r.valid() && ExtractBool(r)) {
+      on_true.primary[id] = transition;
+    } else if (r.valid()) {}
+    else {
+      const sol::error err = r;
+      LOG(ERROR) << err.what();
+      throw Utils::ProgramTermination();
+    }
+  }
+  return on_true;
+}
+
 std::optional<sol::protected_function> Interpret::TestAndSet(
     const std::string& _cond) {
   if (_cond.empty()) {

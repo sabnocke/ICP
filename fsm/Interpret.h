@@ -91,24 +91,7 @@ class Interpret {
     }
   }
 
-  template <typename T>
-  TransitionGroup<T> WhenConditionTrue(TransitionGroup<T> group) {
-    TransitionGroup<T> on_true;
-    for (const auto& [id, transition] : group) {
-      if (!transition.hasCondition)
-        continue;
-
-      if (auto r = transition.cond; r.valid() && ExtractBool(r)) {
-        on_true.primary[id] = transition;
-      } else if (r.valid()) {}
-      else {
-        const sol::error err = r;
-        LOG(ERROR) << err.what();
-        throw Utils::ProgramTermination();
-      }
-    }
-    return on_true;
-  }
+  static TransitionGroup<sol::protected_function> WhenConditionTrue(const TransitionGroup<sol::protected_function>& group);
 
  public:
   /// Skupina přechodů vybraná k aktuálnímu zpracování
