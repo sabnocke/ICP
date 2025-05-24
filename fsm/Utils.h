@@ -4,11 +4,8 @@
  * @author xhlochm00 Michal Hloch
  * @details
  * Obsahuje:
- *  - šablony pro detekci typů (string, string_view, C-string, streamovatelné typy)
  *  - funkce pro trim, lowercase, split, remove, contains, quote
- *  - šablonu StringToNumeric pro převod na Numeric
  *  - šablonu FindAll pro testování více podřetězců
- *  - šablony pro konverzi libovolného typu na std::string
  *  - detailní funkci AttemptConversion používající fast_float
  * @date   2025-05-11
  */
@@ -206,20 +203,8 @@ bool FindAll(const std::string_view str, Args... args) {
 }
 
 class ProgramTermination final : public std::exception {
-  // std::string message;
  public:
-  /*size_t lineNumber = -1;*/
-  /*explicit ProgramTermination(std::string &&msg) : message(std::move(msg)) {}*/
-  /*template <typename... Args>
-  explicit ProgramTermination(std::string_view fmt, Args... args) {
-    message = absl::StrFormat(fmt, args...);
-  }*/
   ProgramTermination() = default;
-  /*ProgramTermination &Line(const size_t lineN) {
-    lineNumber = lineN;
-    return *this;
-  }*/
-  /*[[nodiscard]] const char *what() const noexcept override { return message.c_str(); }*/
 };
 
 }  // namespace Utils
