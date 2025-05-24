@@ -11,86 +11,17 @@
 #pragma once
 
 #include <re2/re2.h>
-#include <optional>
 #include <string>
-#include <tuple>
 
 #include "AutomatLib.h"
 #include "types/all_types.h"
 
-namespace AutomatLib {
+/*namespace AutomatLib {
   class Automat;  ///< Forward declaration třídy Automat
-}
+}*/
 
 namespace ParserLib {
   using namespace types;
-
-
-  /*[[deprecated("Use types::Transition instead")]]
-  struct TransitionRecord {
-    std::string from;   /**< Výchozí stav #1#
-    std::string to;     /**< Cílový stav #1#
-    std::string input;  /**< Vstupní signál #1#
-    std::string cond;   /**< Podmínka #1#
-    std::string delay;  /**< Zpoždění #1#
-
-    /**
-     * @brief Vrátí prázdný záznam.
-     #1#
-    static TransitionRecord Empty() { return {}; }
-
-    /**
-     * @brief Kontrola, zda je záznam prázdný.
-     * @return true pokud se rovná prázdnému záznamu.
-     #1#
-    [[nodiscard]] bool IsEmpty() const { return *this == Empty(); }
-
-    bool operator==(const TransitionRecord &other) const {
-      return from == other.from && to == other.to
-          && input == other.input && cond == other.cond
-          && delay == other.delay;
-    }
-    bool operator!=(const TransitionRecord &other) const {
-      return !(*this == other);
-    }
-
-    /**
-     * @brief Výpis záznamu do streamu.
-     #1#
-    friend std::ostream &operator<<(std::ostream &os, const TransitionRecord &tr) {
-      os << absl::StrFormat("%s -> %s : on <%s> if <%s> after <%s>",
-                            tr.from, tr.to, tr.input, tr.cond, tr.delay);
-      return os;
-    }
-  };*/
-
-
-  /*[[deprecated("Use types::Variable instead")]]
-  struct VariableRecord {
-    std::string type;  /**< Datový typ proměnné #1#
-    std::string name;  /**< Název proměnné #1#
-    std::string value; /**< Počáteční hodnota jako string #1#
-
-    static VariableRecord Empty() { return {}; }
-    [[nodiscard]] bool IsEmpty() const { return *this == Empty(); }
-
-    bool operator==(const VariableRecord &other) const {
-      return type == other.type && name == other.name && value == other.value;
-    }
-    bool operator!=(const VariableRecord &other) const {
-      return !(*this == other);
-    }
-
-    /**
-     * @brief Výpis záznamu proměnné do streamu.
-     #1#
-    friend std::ostream &operator<<(std::ostream &os,
-                                    const VariableRecord &record) {
-      os << absl::StrFormat("%s: %s := %s",
-                            record.name, record.type, record.value);
-      return os;
-    }
-  };*/
 
   /**
    * @enum Section
@@ -127,7 +58,7 @@ namespace ParserLib {
      * @param line Text řádku.
      * @return pair{název, kód akce} nebo nullopt.
      */
-    [[nodiscard]] State<std::string> parseState(const std::string &line) const;
+    [[nodiscard]] State<> parseState(const std::string &line) const;
 
     /**
      * @brief Zkusí rozparsovat proměnnou.
@@ -141,13 +72,6 @@ namespace ParserLib {
      */
     [[nodiscard]] Transition<>
       parseTransition(const std::string &line) const;
-
-    /**
-     * @brief Extrahuje komentářový řádek (deprecated).
-     */
-    [[deprecated]]
-    [[nodiscard]] std::optional<std::string>
-      extractComment(const std::string &line) const;
 
     /**
      * @brief Extrahuje jméno (Name nebo jakýkoliv text).
