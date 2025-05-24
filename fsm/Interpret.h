@@ -11,10 +11,11 @@
  */
 #pragma once
 
+#include <thread>
+#include <absl/log/log.h>
 #include "AutomatLib.h"
-#include "types/all_types.h"
 #include "Stopwatch.h"
-
+#include "types/all_types.h"
 
 namespace Interpreter {
 using namespace types;
@@ -29,7 +30,7 @@ class Interpret {
   bool running = true;
 
   /// Kolekce všech stavů automatu
-  StateGroup<std::string> stateGroup = _automat.states;
+  StateGroup<> stateGroup = _automat.states;
   StateGroup<sol::protected_function> stateGroupFunction;
 
   /// Aktuální název stavu
@@ -39,19 +40,23 @@ class Interpret {
   VariableGroup variableGroup = _automat.variables;
 
   /// Seznam registrovaných vstupních signálů
-  absl::btree_set<std::string> inputs = absl::btree_set<std::string>(_automat.inputs.begin(), _automat.inputs.end());
-  [[deprecated]]absl::node_hash_map<std::string, std::string> inputsValues;
+  absl::btree_set<std::string> inputs = absl::btree_set<std::string>(
+      _automat.inputs.begin(), _automat.inputs.end());
+  [[deprecated]] absl::node_hash_map<std::string, std::string> inputsValues;
 
   /// Seznam registrovaných výstupních signálů
   std::vector<std::string> outputs = _automat.outputs;
-  [[deprecated]]absl::node_hash_map<std::string, std::string> outputsValues;
+  [[deprecated]] absl::node_hash_map<std::string, std::string> outputsValues;
 
   void ChangeState(const TransitionGroup<sol::protected_function>& tg);
-  void ChangeState(TransitionsReference<sol::protected_function>& tr);
+  /*void ChangeState(TransitionsReference<sol::protected_function>& tr);*/
 
   void LinkDelays();
 
-  static void InterpretResult(sol::object& result);
+  using InterpretedValue =
+      std::variant<std::monostate, bool, int, double, std::string>;
+
+  static InterpretedValue InterpretResult(const sol::object& result);
 
   /**
    * @brief Připraví proměnné v rámci Lua prostředí automatu.
@@ -69,11 +74,41 @@ class Interpret {
    */
   void PrepareSignals();
 
-  std::optional<sol::protected_function> Interpret::TestAndSet(
+  std::optional<sol::protected_function> TestAndSet(
       const std::string& _cond);
+
   static bool ExtractBool(const sol::protected_function_result& result);
 
   Timer<> timer{};
+
+  template <typename T>
+  void WaitShortestTimer(const TransitionGroup<T>& group) {
+    if (auto shortest = group.SmallestTimer(); shortest.has_value()) {
+      const auto duration = std::chrono::milliseconds(shortest.value().delayInt);
+      std::this_thread::sleep_for(duration);
+
+      ChangeState(group);
+    }
+  }
+
+  template <typename T>
+  TransitionGroup<T> WhenConditionTrue(TransitionGroup<T> group) {
+    TransitionGroup<T> on_true;
+    for (const auto& [id, transition] : group) {
+      if (!transition.hasCondition)
+        continue;
+
+      if (auto r = transition.cond; r.valid() && ExtractBool(r)) {
+        on_true.primary[id] = transition;
+      } else if (r.valid()) {}
+      else {
+        const sol::error err = r;
+        LOG(ERROR) << err.what();
+        throw Utils::ProgramTermination();
+      }
+    }
+    return on_true;
+  }
 
  public:
   /// Skupina přechodů vybraná k aktuálnímu zpracování

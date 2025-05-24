@@ -1,27 +1,25 @@
 #include "Interpret.h"
 
+#include <absl/log/absl_log.h>
+#include <absl/strings/match.h>
 #include <re2/re2.h>
-#include <spdlog/spdlog.h>
+
 #include <thread>
 
 #include "Utils.h"
-#include "absl/log/absl_check.h"
-#include "absl/strings/match.h"
 #include "external/sol.hpp"
 
-//TODO change the transition (and potentially states) to functions, compile them ahead via lua.load(...)
-//TODO and store the as protected_functions in some friend container (TransitionGroup if remade with generics is good contender)
-//? I probably already did this
-//TODO same for state actions
-//TODO maybe try to split the Execute logic
-//TODO remove the std::move for lua state, state will be build directly in interpreter
-//TODO do a more robust error detection and recovery
-//TODO ^ for all parts of project (automat, parser, interpreter)
+#pragma region counter init
+template <>
+std::atomic<unsigned> types::Transition<>::counter = 0;
+
+template <>
+std::atomic<unsigned> types::Transition<sol::protected_function>::counter = 0;
+#pragma endregion
 
 namespace Interpreter {
 void Interpret::simpleExample() {
   sol::state lua;
-  int x = 0;
   if (const auto res = lua.safe_script("return 0 == 0"); res.valid()) {
     std::cout << res.get<bool>() << std::endl;
   }
@@ -44,117 +42,82 @@ Interpret::Interpret(AutomatLib::Automat&& automat)
   lua["elapsed"] = [&]() { return timer.elapsed(); };
   if (const auto file = lua.script_file("stdlib.lua"); !file.valid()) {
     const sol::error err = file;
-    spdlog::error("Failed to open stdlib.lua: {}", err.what());
+    ABSL_LOG(ERROR) << absl::StrFormat("Failed to open stdlib.lua: %v",
+                                       err.what());
     throw Utils::ProgramTermination();
   }
 }
 
-void Interpret::InterpretResult(sol::object& result) {
-  //TODO this should return something or give the result in some other way
-  auto type = result.get_type();
-  spdlog::debug("Detected type is {}", type);
-
+Interpret::InterpretedValue Interpret::InterpretResult(
+    const sol::object& result) {
   if (result.is<bool>()) {
-    bool value = result.as<bool>();
-    spdlog::debug("Interpreted as bool: {}", value);
-  } else if (result.is<int>()) {
-    int value = result.as<int>();
-    spdlog::debug("Interpreted as int: {}", value);
-  } else if (result.is<double>()) {
-    spdlog::debug("Interpreted as double: {}", result.as<double>());
-  } else if (result.is<std::string>()) {
-    spdlog::debug("Interpreted as string: {}", result.as<std::string>());
-  } else if (result.is<sol::table>()) {
-    spdlog::debug("Interpreted as table");
-  } else if (result.is<sol::function>()) {
-    spdlog::debug("Interpreted as function");
-  } else if (result.is<sol::nil_t>()) {
-    spdlog::debug("Interpreted as nil");
-  } else {
-    spdlog::debug("Interpretation undefined");
+    return result.as<bool>();
   }
+  if (result.is<int>()) {
+    return result.as<int>();
+  }
+  if (result.is<double>()) {
+    return result.as<double>();
+  }
+  if (result.is<std::string>()) {
+    return result.as<std::string>();
+  }
+  if (result.is<sol::table>()) {
+    return std::monostate{};
+  }
+  if (result.is<sol::function>()) {
+    return std::monostate{};
+  }
+  if (result.is<sol::nil_t>()) {
+    return std::monostate{};
+  }
+  ABSL_LOG(ERROR) << "Unknown result type";
+  throw Utils::ProgramTermination();
 }
 
 void Interpret::ChangeState(
     const TransitionGroup<sol::protected_function>& tg) {
-
   timer.tock();
 
   if (const auto t = tg.First(); t.has_value()) {
     activeState = t.value().to;
   } else {
-    spdlog::critical("No next state found, but expected one");
+    ABSL_LOG(FATAL) << "No next state found, but expected one";
     throw Utils::ProgramTermination();
   }
   std::cout << "STATE: " << activeState << std::endl;
   const auto [Name, Action] = stateGroupFunction.Find(activeState).First();
   if (const auto result = Action(); result.valid()) {
-    // yay
     auto r = sol::object(result[0]);
-    InterpretResult(r);
+    auto i_result = InterpretResult(r);
+    //TODO what to do with the i_result?
   } else {
-    // aww
     const sol::error err = result;
-    spdlog::error("Action execution error: {}", err.what());
+    ABSL_LOG(ERROR) << absl::StrFormat("Action execution error: %v",
+                                       err.what());
     throw Utils::ProgramTermination();
   }
 }
 
-/*void Interpret::ChangeState(TransitionsReference<sol::protected_function>& tr) {
-  const auto first = tr.First();
-  timer.tock();
-  if (first.has_value()) {
-    activeState = first.value().get().to;
-  } else {
-    spdlog::critical("No next state found, but expected one");
-    throw Utils::ProgramTermination();
-  }
-
-  spdlog::info("STATE: {}", activeState);
-  const auto [Name, Action] = stateGroupFunction.Find(activeState).First();
-  if (const auto result = Action(); result.valid()) {
-    // yay
-    auto r = sol::object(result[0]);
-    InterpretResult(r);
-  } else {
-    // aww
-    const sol::error err = result;
-    spdlog::error("Action execution error: {}", err.what());
-    throw Utils::ProgramTermination();
-  }
-}*/
-
 void Interpret::LinkDelays() {
-  //TODO finish this
-  auto hasDelay = transitionGroup.WhereMut(
+  const auto hasDelay = transitionGroup.Where(
       [](const Transition<>& tr) { return !tr.delay.empty(); });
 
-  if (hasDelay.None()) //TODO add info print here and repeat this logic later on
+  if (hasDelay.None()) {
+    ABSL_LOG(INFO) << "No delay found";
     return;
+  }
 
-  for (auto v : variableGroup) {
-    auto mod = hasDelay.WhereMut(
+  for (auto& v : variableGroup) {
+    auto mod = hasDelay.Where(
         [v](const Transition<>& tr) { return tr.delay == v.Name; });
 
     if (mod.None())
       continue;
 
     if (auto val = TestAndSetValue<int>(v.Value); val.has_value()) {
-      /*mod.TransformMut([val](auto& tr) {
-        using RawType = Utils::detail::remove_cvref_t<decltype(tr)>;
-        if constexpr (std::is_pointer_v<RawType> || is_smart_ptr<RawType>) {
-          tr->delayInt = val.value();
-          return tr;
-        }
-        tr.delayInt = val.value();
-        return tr;
-      });*/
-      /*mod.ForEach([val](Transition<>& tr) {
-        tr.delayInt = val.value();
-        return tr;
-      });*/
-      for (auto item: mod) {
-        item.get().delayInt = val.value();
+      for (auto item : mod) {
+        item.delayInt = val.value();
       }
     }
   }
@@ -183,10 +146,11 @@ void Interpret::PrepareVariables() {
   }
 }
 
-void Interpret::PrepareStates() { // NOLINT(*-convert-member-functions-to-static)
+void Interpret::
+    PrepareStates() {  // NOLINT(*-convert-member-functions-to-static)
   StateGroup<sol::protected_function> tg;
-  auto new_states = stateGroup.Transform<sol::protected_function>(
-      [this](const State<std::string>& tr) {
+  const auto new_states =
+      stateGroup.Transform<sol::protected_function>([this](const State<>& tr) {
         State<sol::protected_function> n{};
         n.Name = tr.Name;
         if (const auto a = TestAndSet(tr.Action); a.has_value())
@@ -196,7 +160,7 @@ void Interpret::PrepareStates() { // NOLINT(*-convert-member-functions-to-static
         }
         return n;
       });
-  //TODO store the result somewhere
+  stateGroupFunction = new_states;
 }
 
 std::optional<sol::protected_function> Interpret::TestAndSet(
@@ -211,33 +175,27 @@ std::optional<sol::protected_function> Interpret::TestAndSet(
     return primary.get<sol::protected_function>();
   } else {
     const sol::error primary_error = primary;
-    spdlog::warn(primary_error.what());
+    ABSL_LOG(WARNING) << primary_error.what();  //! this might not work
     if (const auto secondary = lua.load("return true"); secondary.valid()) {
       return secondary.get<sol::protected_function>();
     } else {
       const sol::error secondary_error = secondary;
-      spdlog::error(secondary_error.what());
-
+      ABSL_LOG(ERROR) << secondary_error.what();
       return std::nullopt;
     }
   }
 }
 
-/**
- *
- * @param result
- * @return
- */
 bool Interpret::ExtractBool(const sol::protected_function_result& result) {
   if (!result.valid()) {
-    sol::error r_error = result;
-    spdlog::error("Lua runtime error during function call: {}", r_error);
+    const sol::error r_error = result;
+    ABSL_LOG(ERROR) << absl::StrFormat(
+        "Lua runtime error during function call: %v", r_error.what());
     return false;
   }
 
   const auto ret = result[0];
-  auto val_type = ret.get_type();
-  spdlog::debug("Detected type: {}", val_type);
+  const auto val_type = ret.get_type();
 
   if (val_type == sol::type::nil) {
     return false;
@@ -258,18 +216,16 @@ void Interpret::PrepareTransitions() {
     if (auto r = TestAndSet(transition.cond);
         r.has_value() && r.value().valid()) {
       auto res = r.value();
-      auto ntr =
-          Transition<decltype(res)>::Convert /*<Transition<>>*/ (transition);
+      auto ntr = Transition<decltype(res)>::Convert(transition);
       ntr.cond = res;
       ntr.hasCondition = true;
-      ntg.Add(std::move(ntr));
+      ntg.Add(ntr);
     } else {
-      //! in case of complete failure skip the transition? or stop completely?
-      //TODO probably just throw error
-      spdlog::warn(
-          "Skipping transition: {} -> {}; Error in lua runtime or missing "
-          "correct definition",
+      ABSL_LOG(ERROR) << absl::StrFormat(
+          "Transition: %v -> %v; Error in lua runtime or missing correct "
+          "definition",
           transition.from, transition.to);
+      throw Utils::ProgramTermination();
     }
   }
   transitionGroupFunction = ntg;
@@ -293,29 +249,19 @@ void Interpret::Prepare() {
   PrepareSignals();
 }
 
-[[deprecated("Not safe when handling strings, use ExtractBool or InterpretResult")]]
-bool StringToBool(const std::string& str) {
-  const auto lower = Utils::ToLower(str);
-  std::istringstream stream(lower);
-  bool val;
-  stream >> std::boolalpha >> val;
-  return val;
-}
-
 std::string Interpret::ExtractInput(const std::string& line) {
   auto l = Utils::RemovePrefix(line, "input:", Utils::StringComparison::Lazy);
   // should be <name> = <value>
   const auto s = Utils::Split(line, '=');
   if (s.size() != 2) {
-    spdlog::error("Possibly malformed input: {}", line);
-    return {};
+    ABSL_LOG(ERROR) << absl::StrFormat("Possibly malformed input: %v", line);
+    return {};  //TODO terminate?
   }
   auto name = Utils::Trim(s[0]);
   auto value = Utils::Trim(s[1]);
   if (!inputs.contains(name)) {
-    spdlog::error("Cannot dynamically define new signals");
-    //TODO terminate or not?
-    return {};
+    ABSL_LOG(ERROR) << "Cannot dynamically define new signals";
+    return {};  //TODO terminate or not?
   }
   lua["Inputs"][name] = value;
   return name;
@@ -353,98 +299,64 @@ std::pair<int, std::string> Interpret::ParseStdinInput(
 
 int Interpret::Execute() {
   //TODO split into separate procedure for clarity
-  //? Placing it here leads to better results
   lua.open_libraries(sol::lib::base);
-  try {
-    while (running) {
-      // First find all reachable transitions from current transition
-      std::cout << "Active state: " << activeState << std::endl;
-      auto transitions = transitionGroupFunction.Retrieve(activeState);
-      if (transitions.None())
-        continue;  //TODO exit is better
-      // std::cout << "Possible next states: " << std::endl
-      //           << transitions.Out() << std::endl;
-      // Find all free transitions
-      if (auto r = transitions.WhereNone(); r.Some()) {
-        // move and continue
-        ChangeState(r);
+  while (running) {
+    // First find all reachable transitions from current transition
+    std::cout << "Active state: " << activeState << std::endl;
+    auto transitions = transitionGroupFunction.Retrieve(activeState);
+    if (!transitions.has_value())  //TODO add error
+      break;
+    const auto& transitions_v = transitions.value();
+    if (transitions_v.None())
+      break;
+
+    // Find all free transitions
+    if (auto r = transitions_v.WhereNone(); r.Some()) {
+      ChangeState(r);
+      continue;
+    }
+
+    auto transitionsCond = WhenConditionTrue(transitions_v);
+
+    auto [event_true, event_false] = transitionsCond.WhereEvent<true>();
+    auto [timer_true, timer_false] = transitionsCond.WhereTimer<true>();
+    // Find all transitions that have condition, but no input
+    if (auto r = event_false; r.Some()) {
+      // set timer for smallest delay transition
+      if (auto smallest = r.SmallestTimer(); smallest.has_value()) {
+        WaitShortestTimer(r);
         continue;
       }
-      decltype(transitions) transitionsCond;
-      for (auto& transition : transitions) {
-        if (!transition.hasCondition) {
-          continue;
-        }
-        if (auto r = transition.cond(); r.valid() && ExtractBool(r)) {
-          transitionsCond << transition;
-        } else if (r.valid()) {
-        } else {
-          sol::error err = r;
-          spdlog::critical("Encountered unexpected error: {}", err.what());
-          throw Utils::ProgramTermination();
-        }
+    }
+    if (auto& r = event_true; r.Some()) {
+      std::string line;
+      std::getline(std::cin, line);
+      auto [code, signalName] = ParseStdinInput(line);
+      if (code == -1)
+        break;
+      if (code == 0)
+        continue;
+
+      if (auto r1 = event_true & timer_false; r.Some()) {
+        // All transitions with input but no timer
+        auto inputs = r1.Where(
+            [signalName](const Transition<sol::protected_function>& tr) {
+              return tr.input == signalName;
+            });
+
+        ChangeState(inputs);
+        continue;
       }
-
-      /*auto condTrue =
-          TransitionsReference<decltype(transitionsCond)::PureType>{};
-      for (auto& transition : transitionsCond) {
-        if (auto cond = transition.get().cond();
-            cond.valid() && ExtractBool(cond)) {
-          condTrue.Add(transition.get());
-        } else {
-          spdlog::warn("Error retrieving value from function");
-          continue;
-        }
-      }*/
-
-      auto [event_true, event_false] = transitionsCond.WhereEvent<true>();
-      auto [timer_true, timer_false] = transitionsCond.WhereTimer<true>();
-      // Find all transitions that have condition, but no input
-      if (auto r = event_false; r.Some()) {
-        // set timer for smallest delay transition
-        if (auto smallest = r.SmallestTimer(); smallest.has_value()) {
-          auto duration = std::chrono::milliseconds(smallest.value().delayInt);
-          std::this_thread::sleep_for(duration);
-          ChangeState(r);
-          continue;
-        }
-      }
-      if (auto r = event_true; r.Some()) {
-        std::string line;
-        std::getline(std::cin, line);
-        auto [code, signalName] = ParseStdinInput(line);
-        if (code == -1)
-          break;
-        if (code == 0)
-          continue;
-
-        if (auto r1 = event_true & timer_false; r.Some()) {
-          // All transitions with input but no timer
-          auto inputs = r1.Where(
-              [signalName](const Transition<sol::protected_function>& tr) {
-                return tr.input == signalName;
-              });
-          // spdlog::debug("TransitionGroup: {}", inputs.Out());
-          ChangeState(inputs);
-          continue;
-        }
-        if (auto r2 = event_true & timer_true; r2.Some()) {
-          // All transitions with input and timer
-          //TODO missing waiting
-          auto inputs = r2.Where(
-              [signalName](const Transition<sol::protected_function>& tr) {
-                return tr.input == signalName;
-              });
-          // spdlog::debug("TransitionGroup: {}", inputs.Out());
-          ChangeState(inputs);
-        }
+      if (auto r2 = event_true & timer_true; r2.Some()) {
+        // All transitions with input and timer
+        auto inputs = r2.Where(
+            [signalName](const Transition<sol::protected_function>& tr) {
+              return tr.input == signalName;
+            });
+        WaitShortestTimer(inputs);
       }
     }
-  } catch (const std::exception& e) { //TODO remove this as it can interfere with error handling. Or maybe change it?
-    spdlog::error(e.what());
-    return 1;
   }
   return 0;
 }
-
 }  // namespace Interpreter
