@@ -16,10 +16,6 @@
 #include "AutomatLib.h"
 #include "types/all_types.h"
 
-/*namespace AutomatLib {
-  class Automat;  ///< Forward declaration třídy Automat
-}*/
-
 namespace ParserLib {
   using namespace types;
 
