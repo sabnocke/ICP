@@ -4,7 +4,10 @@
     cd vcpkg && .\bootstrap-vcpkg.bat # for powershell
     cd vcpkg && ./bootstrap-vcpkg.sh  # for linux
     ./vcpkg.exe integrate install
-    ./vcpkg.exe install
+    ./vcpkg.exe install abseil
+    ./vcpkg.exe install re2
+    ./vcpkg.exe install lua
+    ./vcpkg.exe install range-v3
 ```
 > That should be all, if it doesn't work I will get angry.
 
