@@ -1,14 +1,10 @@
 - In order to run this, [vcpkg](https://learn.microsoft.com/en-us/vcpkg/get_started/get-started?pivots=shell-powershell) is required
-> The slash/backslash might be incorrect
 ```shell
     git clone https://github.com/microsoft/vcpkg.git
     cd vcpkg && .\bootstrap-vcpkg.bat # for powershell
     cd vcpkg && ./bootstrap-vcpkg.sh  # for linux
     ./vcpkg.exe integrate install
-    ./vcpkg.exe install abseil
-    ./vcpkg.exe install re2
-    ./vcpkg.exe install lua
-    ./vcpkg.exe install range-v3
+    ./vcpkg.exe install
 ```
 > That should be all, if it doesn't work I will get angry.
 
