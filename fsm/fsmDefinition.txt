@@ -1,12 +1,11 @@
 name TOF5s
 # Timer to off.
-Input:
-    in1
-Output:
-    out1
+Input: in1, in2
+Output: out1
+
 Variables:
     int timeout = 5000
-States:
+# States:
 state IDLE [ output("out1", 0) ]
 state ACTIVE [ output("out1", 1) ]
 state TIMING [ ]
