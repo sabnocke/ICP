@@ -13,13 +13,13 @@
 
 #include <absl/strings/str_format.h>
 
+#include <iomanip>
 #include <iostream>
 #include <locale>
 #include <optional>
 #include <range/v3/all.hpp>
 #include <string>
 #include <vector>
-#include <iomanip>
 
 #include "external/fast_float.h"
 
@@ -139,23 +139,19 @@ inline std::vector<std::string> Split(const std::string &str,
          ranges::to<std::vector<std::string>>;
 }
 
-inline std::string RemovePrefix(const std::string &str,
-                                const std::string_view view,
-                                const StringComparison cmp = Exact) {
-  switch (cmp) {
-    case Lazy: {
-      const auto a = ToLower(str);
-      if (const auto b = ToLower(view); !ranges::starts_with(a, b))
-        return str;
-      return str.substr(view.size());
-    }
-    case Exact:
-      if (!ranges::starts_with(str, view))
-        return str;
+template <bool ExactComparison = true>
+std::string RemovePrefix(const std::string &str, const std::string_view view,
+                         const bool trimResult = false) {
+  if constexpr (ExactComparison) {
+    if (!ranges::starts_with(str, view))
+      return trimResult ? Trim(str) : str;
 
-      return str.substr(view.size());
-    default:
-      return str;
+    return trimResult ? Trim(str.substr(view.size())) : str.substr(view.size());
+  } else {
+    const auto a = ToLower(str);
+    if (const auto b = ToLower(view); !ranges::starts_with(a, b))
+      return trimResult ? Trim(str) : str;
+    return trimResult ? Trim(str.substr(view.size())) : str.substr(view.size());
   }
 }
 
