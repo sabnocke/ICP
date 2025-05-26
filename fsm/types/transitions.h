@@ -19,7 +19,6 @@
 #include <absl/strings/str_format.h>
 
 #include <algorithm>
-#include <functional>
 #include <optional>
 #include <range/v3/all.hpp>
 #include <range/v3/view.hpp>
@@ -28,10 +27,8 @@
 #include <utility>
 
 #include "../Utils.h"
+#include "transitions.h"
 
-//TODO are the moving shenanigans worth the hassle?
-//TODO is the cost of copying the group in each iteration so high that TR is worth it?
-//TODO maybe revert back to copying, moving and handling lifetime just takes too much time and makes the whole thing too complicated
 //TODO or figure out different way of not copying it so much (maybe since the examples won't be complex, copying is acceptable?)
 //TODO Where and coll. might instead of creating new copies create TG with different contained type
 //TODO enable_if then could give different implementation of certain functions
@@ -183,7 +180,7 @@ struct Transition {
   friend std::ostream& operator<<(std::ostream& os,
                                   const Transition& transition) {
     os << absl::StrFormat(
-        "%d: {%s -> %s on input: <%s> if condition: <%s> after delay: <%s>} ",
+        "%d: {%s -> %s on input: <%s> if condition: <%s> after delay: <%v>} ",
         transition.Id, transition.from, transition.to, transition.input,
         transition.cond, transition.delay);
     return os;
@@ -204,9 +201,14 @@ public:
 
 
   TransitionGroup() = default;
+  explicit TransitionGroup(TransitionGroupType&& tgt) {
+    primary = std::move(tgt);
+    GroupTransitions();
+  }
 
   TransitionGroup& operator<<(const Transition<T>& tr) {
     primary[tr.Id] = tr;
+    index_by_from[primary.at(tr.Id).from].primary[tr.Id] = tr;
     return *this;
   }
 
@@ -217,38 +219,21 @@ public:
 
   [[deprecated]] static TransitionGroup Empty() {
     auto tg = TransitionGroup{};
-    // tg._transition_groups = {};
     return tg;
+  }
+
+  void GroupTransitions() {
+    for (const auto& [id, tr] : primary) {
+      index_by_from[primary.at(tr.Id).from].primary[id] = tr;
+    }
   }
 
   void Add(const Transition<T>& transition) {
     primary[transition.Id] = transition;
-    /*index_by_from[primary.at(transition.Id).from].Add(
-        primary.at(transition.Id));
-        */
 
     index_by_from[primary.at(transition.Id).from].primary[transition.Id] =
         transition;
   }
-
-  /*explicit TransitionGroup(TransitionGroupType<T>&& transitions) {
-    if constexpr (ranges::sized_range<TransitionGroupType<T>>)
-      primary.reserve(ranges::size(transitions));
-
-    for (auto& [id, transition] : transitions) {
-      Add(std::move(transition));
-    }
-  }*/
-
-  /*TransitionGroup Retrieve(const std::string& input) const {
-    if (index_by_from.empty())
-      //! Error
-
-      if (index_by_from.contains(input))
-        return index_by_from.at(input);
-
-    return Empty();
-  }*/
 
   std::optional<TransitionGroup> Retrieve(const std::string& input) const& {
     if (index_by_from.empty())
@@ -259,40 +244,6 @@ public:
 
     return std::nullopt;
   }
-
-
-  /*TransitionsReference<T> RetrieveMut(const std::string_view input) {
-    if (index_by_from.empty())
-      return TransitionsReference<T>{};  //! ERROR
-
-    if (index_by_from.contains(input))
-      return index_by_from.at(input);
-
-    return TransitionsReference<T>{};
-  }*/
-
-  /*template <typename ResultT>
-  [[deprecated]] TransitionGroup<ResultT> Transform(
-      const std::function<Transition<ResultT>(Transition<T>)>& fun) {
-    auto transformed_pairs_view =
-        primary |
-        ranges::views::transform(
-            [&](const auto& pair_ref) {
-              // 'pair_ref' is const std::pair<const unsigned, Transition<T>>&
-
-              const auto& [original_id, original_transition] = pair_ref;
-
-              Transition<ResultT> transformed_transition =
-                  fun(original_transition);
-
-              return std::make_pair(original_id,
-                                    std::move(transformed_transition));
-            });
-
-    auto new_primary = ranges::to<TransitionGroupType<ResultT>>();
-
-    return TransitionGroup<ResultT>(std::move(new_primary));
-  }*/
 
   /// Retrieves all transitions that pass filtering by predicate
   ///
@@ -369,6 +320,8 @@ public:
     return min_v;
   }
 
+
+
   bool Contains(const Transition<T>& tr) { return primary.contains(tr.Id); }
 
   [[nodiscard]] std::optional<Transition<T>> First() const {
@@ -386,6 +339,22 @@ public:
   }
   [[nodiscard]] auto empty() const { return primary.empty(); }
 
+  TransitionGroup operator& (const TransitionGroup& other) {
+    auto final = TransitionGroupType();
+    auto first = ranges::size(primary | ranges::views::values);
+    auto second = ranges::size(other.primary | ranges::views::values);
+    final.reserve(std::min(first, second));
+
+    auto small = first > second ? other.primary : primary;
+
+    for (auto& el : small) {
+      if (other.primary.contains(el.first) && primary.contains(el.first))
+        final[el.first] = el.second;
+    }
+
+    return TransitionGroup(std::move(final));
+  }
+
   TransitionGroup operator&(const TransitionGroup& other) const {
     auto small = Size() > other.Size() ? other.primary : primary;
     auto final = TransitionGroup();
@@ -395,6 +364,13 @@ public:
         final.primary[id] = tr;
     }
     return final;
+  }
+
+  friend std::ostream& operator<<(std::ostream& os, const TransitionGroup& group) {
+    for (const auto& [id, tr] : group.primary) {
+      os << "ID: " << id << " | " << tr << std::endl;
+    }
+    return os;
   }
 };
 }  // namespace types
