@@ -1,4 +1,5 @@
 - In order to run this, [vcpkg](https://learn.microsoft.com/en-us/vcpkg/get_started/get-started?pivots=shell-powershell) is required
+
 ```shell
     git clone https://github.com/microsoft/vcpkg.git
     cd vcpkg && ./bootstrap-vcpkg.bat # for powershell
