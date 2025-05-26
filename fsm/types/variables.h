@@ -13,43 +13,21 @@
 
 #include <absl/container/btree_set.h>
 #include <absl/strings/str_format.h>
+
 #include <optional>
 #include <string>
-#include <variant>
+#include <utility>
 
 #include "../Utils.h"
-#include "numeric.h"
 
 namespace types {
 
-using TypeType = std::string;   /**< Alias pro typ proměnné. */
-using NameType = std::string;   /**< Alias pro název proměnné. */
-using ValueType = std::string;  /**< Alias pro hodnotu proměnné jako string. */
-
 /**
- * @brief Trait pro detekci operátoru < mezi typy.
- */
-template <typename T, typename = void>
-struct has_less : std::false_type {};
-
-template <typename T>
-struct has_less<
-    T,
-    std::void_t<decltype(std::declval<T &>() < std::declval<T &>())>>
-    : std::true_type {};
-
-template <typename T>
-inline constexpr bool has_less_v = has_less<T>::value;
-
-/**
- * @struct Variable
+ * @class Variable
  * @brief Uchovává informace o jedné proměnné.
  */
-struct Variable {
-private:
-  std::variant<std::monostate, int, long long, float, double, std::string> var_; /**< Interní hodnota */
-
-public:
+class Variable {
+ public:
   /**
    * @brief Výchozí konstruktor.
    */
@@ -61,13 +39,12 @@ public:
    * @param name  Název proměnné.
    * @param value Hodnota proměnné jako string.
    */
-  Variable(const std::string &type, const std::string &name,
-           const std::string &value)
-      : Type(type), Name(name), Value(value) {}
+  Variable(std::string &&type, std::string &&name, std::string &&value)
+      : Type(std::move(type)), Name(std::move(name)), Value(std::move(value)) {}
 
-  TypeType Type;   /**< Datový typ proměnné. */
-  NameType Name;   /**< Název proměnné. */
-  ValueType Value; /**< Hodnota proměnné jako string. */
+  std::string Type;   /**< Datový typ proměnné. */
+  std::string Name;   /**< Název proměnné. */
+  std::string Value; /**< Hodnota proměnné jako string. */
 
   /**
    * @brief Výčet podporovaných typů pro extrakci.
@@ -82,11 +59,11 @@ public:
   template <knownTypes T>
   auto ExtractValue() const {
     if constexpr (T == INT) {
-      return Utils::StringToNumeric<int>(Value).Get<int>();
+      return Utils::StringToNumeric<int>(Value);
     } else if constexpr (T == LLONG) {
-      return Utils::StringToNumeric<long long>(Value).Get<long long>();
+      return Utils::StringToNumeric<long long>(Value);
     } else if constexpr (T == DOUBLE) {
-      return Utils::StringToNumeric<double>(Value).Get<double>();
+      return Utils::StringToNumeric<double>(Value);
     } else if constexpr (T == STRING) {
       return Value;
     }
@@ -95,7 +72,7 @@ public:
   /**
    * @brief Vrací tuple {Type, Name, Value}.
    */
-  [[nodiscard]] std::tuple<TypeType, NameType, ValueType> Tuple() const {
+  [[nodiscard]] std::tuple<std::string, std::string, std::string> Tuple() const {
     return std::make_tuple(Type, Name, Value);
   }
 
@@ -103,8 +80,10 @@ public:
    * @brief Porovnání proměnných podle Name, Type a Value.
    */
   bool operator<(const Variable &other) const {
-    if (Name != other.Name) return Name < other.Name;
-    if (Type != other.Type) return Type < other.Type;
+    if (Name != other.Name)
+      return Name < other.Name;
+    if (Type != other.Type)
+      return Type < other.Type;
     return Value < other.Value;
   }
 
@@ -118,14 +97,13 @@ public:
 };
 
 /**
- * @struct VariableGroup
+ * @class VariableGroup
  * @brief Kolekce proměnných s možností vkládání a vyhledávání.
  */
-struct VariableGroup {
-private:
+class VariableGroup {
   absl::btree_set<Variable> vars_; /**< Množina proměnných. */
 
-public:
+ public:
   /**
    * @brief Výchozí konstruktor.
    */
@@ -136,9 +114,27 @@ public:
    */
   [[nodiscard]] absl::btree_set<Variable> Get() const { return vars_; }
 
+  auto begin() { return vars_.begin(); }
+  auto end() { return vars_.end(); }
+
+  VariableGroup Add(Variable &&var) {
+    vars_.insert(std::move(var));
+    return *this;
+  }
+
   /**
    * @brief Přidá proměnnou do skupiny.
    */
+  VariableGroup &operator<<(Variable &&var) {
+    vars_.insert(std::move(var));
+    return *this;
+  }
+
+  VariableGroup &operator<<(const Variable &&var) {
+    vars_.insert(var);
+    return *this;
+  }
+
   VariableGroup &operator<<(const Variable &var) {
     vars_.insert(var);
     return *this;
@@ -160,9 +156,13 @@ public:
    */
   [[nodiscard]] std::optional<Variable> Find(const std::string &name) const {
     for (const auto &v : vars_) {
-      if (v.Name == name) return v;
+      if (v.Name == name)
+        return v;
     }
     return std::nullopt;
+  }
+  [[nodiscard]] bool Contains(const Variable &name) const {
+    return vars_.contains(name);
   }
 };
 
