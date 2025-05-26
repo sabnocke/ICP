@@ -162,7 +162,7 @@ void Interpret::PrepareStates() {
       n.Action = sol::protected_function{};
     }
 
-    stateGroupFunction.Add(n);  //! <-- Process finished with exit code -1073741819 (0xC0000005)
+    stateGroupFunction.Add(n);
   }
 }
 
@@ -268,7 +268,7 @@ void Interpret::Prepare() {
   PrepareVariables();
   PrepareTransitions();
   PrepareStates();
-  /*PrepareSignals();*/
+  PrepareSignals();
 }
 
 std::string Interpret::ExtractInput(const std::string& line) {
@@ -322,7 +322,7 @@ std::pair<int, std::string> Interpret::ParseStdinInput(
 
 int Interpret::Execute() {
   //TODO split into separate procedure for clarity
-  lua.open_libraries(sol::lib::base);
+
   while (running) {
     // First find all reachable transitions from current transition
     std::cout << "Active state: " << activeState << std::endl;
