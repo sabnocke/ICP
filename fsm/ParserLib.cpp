@@ -15,7 +15,7 @@ namespace ParserLib {
 Parser::Parser() {
   RE2::Options options;
   options.set_case_sensitive(false);
-  name_pattern_ = std::make_unique<RE2>(R"(^\s*Name\s*:\s*(?<c>.*)$)", options);
+  name_pattern_ = std::make_unique<RE2>(R"(^\s*Name\s*:?\s*(?<c>.*)$)", options);
   comment_pattern_ = std::make_unique<RE2>(R"(^.*?:\s*?(?<c>.*)$)", options);
   variables_pattern_ = std::make_unique<RE2>(
       R"((?<type>\w+) (?<name>\w+) = (?<value>\w+))", options);
@@ -107,10 +107,18 @@ bool Parser::SectionHandler(const std::string &line,
       automat.addVariable(parseVariable(line));
       return true;
     case Inputs:
-      automat.addInput(parseSignal(line));
+      for (const auto& name: parseSignal(line)) {
+        std::cerr << name << std::endl;
+        automat.addInput(name);
+      }
+      // automat.addInput(parseSignal(line));
       return true;
     case Outputs:
-      automat.addOutput(parseSignal(line));
+      for (const auto& name: parseSignal(line)) {
+        std::cerr << name << std::endl;
+        automat.addOutput(name);
+      }
+      // automat.addOutput(parseSignal(line));
       return true;
   }
 
@@ -172,17 +180,26 @@ Transition<> Parser::parseTransition(const std::string &line) const {
   throw Utils::ProgramTermination();
 }
 
-std::string Parser::parseSignal(const std::string &line) const {
-  std::string name;
-  if (RE2::FullMatch(line, *input_pattern_, &name) && !name.empty()) {
-    if (auto trimmed = Utils::Trim(name); !trimmed.empty()) {
-      return trimmed;
-    }
+std::vector<std::string> Parser::parseSignal(const std::string &line) const {
+  auto terminate = [n=lineNumber,l=line]() {
+    ABSL_LOG(ERROR) << absl::StrFormat("[%lu] Malformed signal definition: %s",
+                                     n, l);
+    throw Utils::ProgramTermination();
+  };
+
+  const auto result = Utils::RemovePrefix<false>(line, "input:", true);
+  if (result.empty()) {
+    terminate();
   }
 
-  ABSL_LOG(ERROR) << absl::StrFormat("[%lu] Malformed signal definition: %s",
-                                     lineNumber, line);
-  throw Utils::ProgramTermination();
+  // std::cerr << result << std::endl;
+
+  auto result2 = Utils::Split(result, ',');
+  if (result2.empty()) {
+    terminate();
+  }
+
+  return Utils::TrimEach(result2);
 }
 
 }  // namespace ParserLib
