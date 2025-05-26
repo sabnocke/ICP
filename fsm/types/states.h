@@ -30,14 +30,26 @@ struct State {
     return os;
   }
   State() = default;
-  State(const std::string &&name, const std::string &&action)
+  State(const State& other) = default;
+  State(State&& other) noexcept = default;
+  State(std::string &&name, std::string &&action)
       : Name(std::move(name)), Action(std::move(action)) {}
+
+  State& operator=(const State &state) = default;
+  State& operator=(State &&state) noexcept {
+    if (this != &state) {
+      Name = std::move(state.Name);
+      Action = std::move(state.Action);
+    }
+    return *this;
+  }
 };
 
 template <typename T = std::string>
 struct StateGroup {
  private:
   std::vector<State<T>> states;
+  std::vector<std::shared_ptr<State<T>>> secondary;
 
  public:
   StateGroup() = default;
@@ -66,8 +78,6 @@ struct StateGroup {
     }
     return *this;
   }
-
-
 
   [[nodiscard]] std::vector<std::string> GetNames() const {
     auto it = states | ranges::views::transform(
@@ -114,14 +124,16 @@ struct StateGroup {
     }
     std::vector s(states.begin() + 1, states.end());
 
-    return StateGroup{std::move(s)};
+    return StateGroup{s};
   }
   [[nodiscard]] size_t Size() const { return states.size(); }
 
-  StateGroup Add(const State<T> &state) {
+  StateGroup& Add(const State<T> &state) {
     states.emplace_back(state);
     return *this;
   }
+
+  // StateGroup& AddShared()
 
   StateGroup &operator<<(const State<T> &state) {
     states.emplace_back(state);
