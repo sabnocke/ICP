@@ -43,6 +43,32 @@ struct StateGroup {
   StateGroup() = default;
   explicit StateGroup(std::vector<State<T>> states)
       : states(std::move(states)) {}
+  StateGroup(StateGroup &&group) noexcept
+      : states(std::move(group.states)) {}
+  StateGroup(const StateGroup &group) noexcept
+      : states(group.states) {}
+
+  void swap(StateGroup& other) noexcept{
+    using std::swap;
+    swap(states, other.states);
+  }
+
+  StateGroup &operator=(const StateGroup &group) {
+    if (this != &group) {
+      StateGroup tmp(group);
+      swap(tmp);
+    }
+    return *this;
+  }
+  StateGroup &operator=(StateGroup &&other) noexcept {
+    if (this != &other) {
+      swap(other);
+    }
+    return *this;
+  }
+
+
+
   [[nodiscard]] std::vector<std::string> GetNames() const {
     auto it = states | ranges::views::transform(
                            [](const State<T> &state) { return state.Name; });
@@ -61,7 +87,7 @@ struct StateGroup {
     return it | ranges::to<std::vector<std::pair<std::string, std::string>>>;
   }
 
-  template<typename ResultT>
+  template <typename ResultT>
   StateGroup<ResultT> Transform(std::function<State<ResultT>(State<T>)> fun) {
     auto it = states | ranges::views::transform(fun);
     const auto new_states = it | ranges::to<std::vector<State<ResultT>>>;
@@ -91,6 +117,7 @@ struct StateGroup {
     return StateGroup{std::move(s)};
   }
   [[nodiscard]] size_t Size() const { return states.size(); }
+
   StateGroup Add(const State<T> &state) {
     states.emplace_back(state);
     return *this;
