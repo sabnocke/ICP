@@ -52,19 +52,29 @@ int main(const int argc, char** argv) {
   // absl::SetMinLogLevel(absl::LogSeverityAtLeast::kInfo); //<-- this doesn't do anything of use
 
   try {
-    ABSL_LOG(INFO) << "Hello, World!";
-    parserTest();
+    Timer<> timer;
+    timer.tick();
+    // parserTest();
+    auto parser = ParserLib::Parser();
+    const auto automat = parser.parseAutomat(argv[1]);
+    auto interpret = Interpreter::Interpret(automat);
+    interpret.Prepare();
+    timer.tock();
+    std::cerr << "Parser and interpret creation took " << timer.duration<>().count() << "ms." << std::endl;
+    std::cerr << "Elapsed: " << timer.elapsed<>().count() << "ms" << std::endl;
+    // std::cout << automat.transitions << std::endl;
+    // std::cerr << "Elapsed: " << timer.elapsed<>().count() << "ms" << std::endl;
+    std::cout << interpret.transitionGroup << std::endl;
   } catch (const Utils::ProgramTermination&) {
+    return 1;
+  } catch (const std::exception& e) {
+    std::cerr << e.what() << std::endl;
     return 1;
   }
   // sol::state lua{};
   // lua.open_libraries(sol::lib::base, sol::lib::package);
-  // auto parser = ParserLib::Parser();
-  // auto automat = parser.parseAutomat(argv[1]);
-  // Interpreter::Interpret interpreter(automat);
-  // interpreter.Prepare();
-  // std::cout << automat.transitions << std::endl;
-  // std::cout << interpreter.transitionGroup << std::endl;
+
+
   // interpreter.Execute(false);
   // Interpreter::Interpret<std::string>::simpleExample();
 
