@@ -77,7 +77,8 @@ namespace ParserLib {
     /**
      * @brief Zparsuje signál (vstup nebo výstup).
      */
-    [[nodiscard]] std::string parseSignal(const std::string &line) const;
+    [[nodiscard]] std::vector<std::string> parseSignal(
+        const std::string &line) const;
 
   private:
     /**
