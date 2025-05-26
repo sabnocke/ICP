@@ -4,6 +4,7 @@
 #include <absl/strings/match.h>
 #include <re2/re2.h>
 
+#include <algorithm>
 #include <thread>
 
 #include "Utils.h"
@@ -146,24 +147,27 @@ void Interpret::PrepareVariables() {
   }
 }
 
-void Interpret::
-    PrepareStates() {  // NOLINT(*-convert-member-functions-to-static)
+void Interpret::PrepareStates() {
   StateGroup<sol::protected_function> tg;
-  const auto new_states =
-      stateGroup.Transform<sol::protected_function>([this](const State<>& tr) {
-        State<sol::protected_function> n{};
-        n.Name = tr.Name;
-        if (const auto a = TestAndSet(tr.Action); a.has_value())
-          n.Action = a.value();
-        else {
-          n.Action = sol::protected_function{};
-        }
-        return n;
-      });
-  stateGroupFunction = new_states;
+  for (const auto& state : stateGroup) {
+    std::cout << state << std::endl;
+    State<sol::protected_function> n{};
+    n.Name = state.Name;
+    if (const auto a = TestAndSet(state.Action);
+        a.has_value() && a.value().valid()) {
+      n.Action = a.value();
+    } else {
+      //! this might be an error
+      //TODO add error and sol error
+      n.Action = sol::protected_function{};
+    }
+
+    stateGroupFunction.Add(n);  //! <-- Process finished with exit code -1073741819 (0xC0000005)
+  }
 }
 
-TransitionGroup<sol::protected_function> Interpret::WhenConditionTrue(const TransitionGroup<sol::protected_function>& group) {
+TransitionGroup<sol::protected_function> Interpret::WhenConditionTrue(
+    const TransitionGroup<sol::protected_function>& group) {
   TransitionGroup<sol::protected_function> on_true;
   for (const auto& [id, transition] : group.primary) {
     if (!transition.hasCondition)
@@ -171,8 +175,8 @@ TransitionGroup<sol::protected_function> Interpret::WhenConditionTrue(const Tran
 
     if (auto r = transition.cond(); r.valid() && ExtractBool(r)) {
       on_true.primary[id] = transition;
-    } else if (r.valid()) {}
-    else {
+    } else if (r.valid()) {
+    } else {
       const sol::error err = r;
       LOG(ERROR) << err.what();
       throw Utils::ProgramTermination();
@@ -264,11 +268,11 @@ void Interpret::Prepare() {
   PrepareVariables();
   PrepareTransitions();
   PrepareStates();
-  PrepareSignals();
+  /*PrepareSignals();*/
 }
 
 std::string Interpret::ExtractInput(const std::string& line) {
-  auto l = Utils::RemovePrefix(line, "input:", Utils::StringComparison::Lazy);
+  auto l = Utils::RemovePrefix<false>(line, "input:");
   // should be <name> = <value>
   const auto s = Utils::Split(line, '=');
   if (s.size() != 2) {
@@ -277,7 +281,8 @@ std::string Interpret::ExtractInput(const std::string& line) {
   }
   auto name = Utils::Trim(s[0]);
   auto value = Utils::Trim(s[1]);
-  if (!inputs.contains(name)) {
+  if (const auto pos = std::find(inputs.begin(), inputs.end(), name);
+      pos != inputs.end()) {
     ABSL_LOG(ERROR) << "Cannot dynamically define new signals";
     return {};  //TODO terminate or not?
   }
