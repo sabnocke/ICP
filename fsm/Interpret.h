@@ -11,8 +11,10 @@
  */
 #pragma once
 
-#include <thread>
 #include <absl/log/log.h>
+
+#include <thread>
+
 #include "AutomatLib.h"
 #include "Stopwatch.h"
 #include "types/all_types.h"
@@ -30,8 +32,8 @@ class Interpret {
   bool running = true;
 
   /// Kolekce všech stavů automatu
-  StateGroup<> stateGroup = _automat.states;
-  StateGroup<sol::protected_function> stateGroupFunction;
+  StateGroup<> stateGroup{};
+  StateGroup<sol::protected_function> stateGroupFunction{};
 
   /// Aktuální název stavu
   std::string activeState = stateGroup.First().Name;
@@ -40,8 +42,7 @@ class Interpret {
   VariableGroup variableGroup = _automat.variables;
 
   /// Seznam registrovaných vstupních signálů
-  absl::btree_set<std::string> inputs = absl::btree_set<std::string>(
-      _automat.inputs.begin(), _automat.inputs.end());
+  std::vector<std::string> inputs = _automat.inputs;
   [[deprecated]] absl::node_hash_map<std::string, std::string> inputsValues;
 
   /// Seznam registrovaných výstupních signálů
@@ -74,8 +75,7 @@ class Interpret {
    */
   void PrepareSignals();
 
-  std::optional<sol::protected_function> TestAndSet(
-      const std::string& _cond);
+  std::optional<sol::protected_function> TestAndSet(const std::string& _cond);
 
   static bool ExtractBool(const sol::protected_function_result& result);
 
@@ -84,14 +84,16 @@ class Interpret {
   template <typename T>
   void WaitShortestTimer(const TransitionGroup<T>& group) {
     if (auto shortest = group.SmallestTimer(); shortest.has_value()) {
-      const auto duration = std::chrono::milliseconds(shortest.value().delayInt);
+      const auto duration =
+          std::chrono::milliseconds(shortest.value().delayInt);
       std::this_thread::sleep_for(duration);
 
       ChangeState(group);
     }
   }
 
-  static TransitionGroup<sol::protected_function> WhenConditionTrue(const TransitionGroup<sol::protected_function>& group);
+  static TransitionGroup<sol::protected_function> WhenConditionTrue(
+      const TransitionGroup<sol::protected_function>& group);
 
  public:
   /// Skupina přechodů vybraná k aktuálnímu zpracování
@@ -105,9 +107,26 @@ class Interpret {
 
   /**
    * @brief Konstruktor přijímající existující model automatu.
-   * @param automat Reference na instanci třídy Automat.
+   * @param automat R-hodnota instance třídy Automat.
    */
   explicit Interpret(AutomatLib::Automat&& automat);
+  explicit Interpret(const AutomatLib::Automat& automat) {
+    transitionGroup = automat.transitions;
+    transitionGroupFunction = TransitionGroup<sol::protected_function>();
+    stateGroup = automat.states;
+    stateGroupFunction = StateGroup<sol::protected_function>();
+    inputs = automat.inputs;
+    outputs = automat.outputs;
+
+    lua.open_libraries(sol::lib::base);
+    lua["elapsed"] = [&]() { return timer.elapsed<>(); };
+    if (const auto file = lua.script_file("stdlib.lua"); !file.valid()) {
+      const sol::error err = file;
+      LOG(ERROR) << absl::StrFormat("Failed to open stdlib.lua: %v",
+                                    err.what());
+      throw Utils::ProgramTermination();
+    }
+  }
 
   /**
    * @brief Statická ukázková metoda demonstrující jednoduché použití interpretu.
