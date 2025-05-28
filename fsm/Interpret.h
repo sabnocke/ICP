@@ -62,7 +62,7 @@ class Interpret {
   std::vector<std::string> outputs = _automat.outputs;
   [[deprecated]] absl::node_hash_map<std::string, std::string> outputsValues;
 
-  void ChangeState(const TransitionGroup<sol::protected_function>& tg);
+  void ChangeState(const TransitionGroup& tg);
   /*void ChangeState(TransitionsReference<sol::protected_function>& tr);*/
 
   void LinkDelays();
@@ -94,8 +94,7 @@ class Interpret {
 
   Timer<> timer{};
 
-  template <typename T>
-  void WaitShortestTimer(const TransitionGroup<T>& group) {
+  void WaitShortestTimer(const TransitionGroup& group) {
     if (auto shortest = group.SmallestTimer(); shortest.has_value()) {
       const auto duration =
           std::chrono::milliseconds(shortest.value().delayInt);
@@ -105,13 +104,12 @@ class Interpret {
     }
   }
 
-  static TransitionGroup<sol::protected_function> WhenConditionTrue(
-      const TransitionGroup<sol::protected_function>& group);
+  static TransitionGroup WhenConditionTrue(
+      const TransitionGroup& group);
 
  public:
   /// Skupina přechodů vybraná k aktuálnímu zpracování
-  TransitionGroup<std::string> transitionGroup{};
-  TransitionGroup<sol::protected_function> transitionGroupFunction{};
+  mutable TransitionGroup transitionGroup{};
 
   /**
    * @brief Provede kompletní přípravu interpretu voláním přípravných metod.
@@ -125,11 +123,11 @@ class Interpret {
   explicit Interpret(AutomatLib::Automat&& automat);
   explicit Interpret(const AutomatLib::Automat& automat) {
     transitionGroup = automat.transitions;
-    transitionGroupFunction = TransitionGroup<sol::protected_function>();
     stateGroup = automat.states;
-    stateGroupFunction = StateGroup<sol::protected_function>();
+    variableGroup = automat.variables;
     inputs = automat.inputs;
     outputs = automat.outputs;
+    activeState = stateGroup.First().Name;
 
     lua.open_libraries(sol::lib::base);
     lua["elapsed"] = [&]() { return timer.elapsed<>(); };
