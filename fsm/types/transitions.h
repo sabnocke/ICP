@@ -35,27 +35,19 @@
 //TODO thus removing the need for two classes and a lot of moving
 
 namespace types {
-
-template <typename T>
-class TransitionGroup;
-template <typename T>
-struct Transition;
-template <typename T>
-using TGTMap = absl::node_hash_map<std::string, TransitionGroup<T>>;
+/*class TransitionGroup;*/
 
 /**
- * @struct Transition
+ * @class Transition
  * @brief Uchovává podrobnosti jednoho přechodu.
  */
-
-template <typename T = std::string>
-struct Transition {
-  using ContainedType = T;
-
+class Transition {
+ public:
   std::string from{};
   std::string to{};
   std::string input{};
-  T cond{};
+  std::string condition{};
+  sol::protected_function function{};
   bool hasCondition = false;
   std::string delay{};
   int delayInt{};
@@ -71,34 +63,29 @@ struct Transition {
       : from(std::move(_from)),
         to(std::move(_to)),
         input(std::move(_input)),
-        cond(std::move(_cond)),
+        condition(std::move(_cond)),
         delay(std::move(_delay)) {
     Id = ++counter;
   }
-  /**
-  * @brief Konstruktor pro přechod s celočíselným zpožděním.
-  */
-  Transition(std::string _from, std::string _to, std::string _input,
-             const int _delay)
-      : from(std::move(_from)),
-        to(std::move(_to)),
-        input(std::move(_input)),
-        delayInt(_delay) {
-    Id = ++counter;
-  }
 
-  template <typename OtherT>
-  explicit Transition(Transition<OtherT>&& other)
+  explicit Transition(Transition&& other) noexcept
       : from(std::move(other.from)),
         to(std::move(other.to)),
         input(std::move(other.input)),
+        condition(std::move(other.condition)),
         delay(std::move(other.delay)),
         delayInt(other.delayInt) {
-    cond = T();
+    if (other.hasCondition) {
+      function = std::move(other.function);
+      hasCondition = true;
+    } else {
+      function = sol::protected_function{};
+      hasCondition = false;
+    }
     Id = other.Id;
   }
 
-  Transition() { Id = ++counter; }
+  Transition() { /*Id = ++counter;*/ }
 
   Transition(const Transition& other) = default;
   Transition& operator=(const Transition& other) = default;
@@ -107,39 +94,15 @@ struct Transition {
     if (this != &other) {
       from = std::move(other.from);
       to = std::move(other.to);
-      cond = std::move(other.cond);
+      condition = std::move(other.condition);
+      function = std::move(other.function);
       input = std::move(other.input);
       delay = std::move(other.delay);
       delayInt = other.delayInt;
       Id = other.Id;
+      hasCondition = other.hasCondition;
     }
     return *this;
-  }
-  template <typename OtherT>
-  Transition& operator=(Transition<OtherT>&& other) noexcept {
-    if (this != &other) {
-      from = std::move(other.from);
-      to = std::move(other.to);
-      cond = T();
-      input = std::move(other.input);
-      delay = std::move(other.delay);
-      delayInt = other.delayInt;
-      Id = other.Id;
-    }
-    return *this;
-  }
-
-  template <typename FromT>
-  static Transition Convert(const Transition<FromT>& other) {
-    auto result = Transition<T>{};
-    result.from = other.from;
-    result.to = other.to;
-    result.cond = T{};
-    result.delay = other.delay;
-    result.delayInt = other.delayInt;
-    result.Id = other.Id;
-
-    return result;
   }
 
   /**
@@ -149,7 +112,7 @@ struct Transition {
   [[nodiscard]] std::tuple<std::string, std::string, std::string, std::string,
                            std::string>
   Tuple() const {
-    return std::make_tuple(from, to, input, cond, delay);
+    return std::make_tuple(from, to, input, condition, delay);
   }
 
   bool operator==(const Transition& transition) const {
@@ -161,9 +124,11 @@ struct Transition {
       return false;
     if (input != transition.input)
       return false;
-    if (cond != transition.cond)
+    if (condition != transition.condition)
       return false;
     if (delay != transition.delay)
+      return false;
+    if (hasCondition != transition.hasCondition)
       return false;
     return true;
   }
@@ -171,8 +136,9 @@ struct Transition {
     return !(*this == transition);
   }
   bool operator<(const Transition& other) const {
-    return std::tie(from, to, input, cond, delay) <
-           std::tie(other.from, other.to, other.input, other.cond, other.delay);
+    return std::tie(from, to, input, condition, delay, hasCondition) <
+           std::tie(other.from, other.to, other.input, other.condition,
+                    other.delay, other.hasCondition);
   }
   /**
   * @brief Výpis přechodu do výstupního proudu.
@@ -180,9 +146,11 @@ struct Transition {
   friend std::ostream& operator<<(std::ostream& os,
                                   const Transition& transition) {
     os << absl::StrFormat(
-        "%d: {%s -> %s on input: <%s> if condition: <%s> after delay: <%v>} ",
+        "%d: {%s -> %s on input: <%s> if condition: <%s|%v> after delay: "
+        "<%s|%v>} ",
         transition.Id, transition.from, transition.to, transition.input,
-        transition.cond, transition.delay);
+        transition.condition, transition.hasCondition, transition.delay,
+        transition.delayInt);
     return os;
   }
 };
@@ -191,14 +159,13 @@ struct Transition {
  * @class TransitionGroup
  * @brief Kolekce přechodů s nástroji pro manipulaci.
  */
-template <typename T>
 class TransitionGroup {
-public:
-  using TransitionGroupType = absl::flat_hash_map<unsigned, Transition<T>>;
+ public:
+  using TransitionGroupType = absl::flat_hash_map<unsigned, Transition>;
 
   TransitionGroupType primary{};
+  /*std::vector<Transition> transitions{};*/
   absl::flat_hash_map<std::string, TransitionGroup> index_by_from{};
-
 
   TransitionGroup() = default;
   explicit TransitionGroup(TransitionGroupType&& tgt) {
@@ -206,10 +173,21 @@ public:
     GroupTransitions();
   }
 
-  TransitionGroup& operator<<(const Transition<T>& tr) {
+  TransitionGroup& operator<<(const Transition& tr) {
     primary[tr.Id] = tr;
     index_by_from[primary.at(tr.Id).from].primary[tr.Id] = tr;
     return *this;
+  }
+
+  void Add(Transition&& transition) {
+    /*std::cerr << "Add received transition: " << transition << std::endl;*/
+    /*transitions.emplace_back(transition);*/
+    primary[transition.Id] = std::move(transition);
+
+    index_by_from[primary.at(transition.Id).from].primary[transition.Id] =
+        primary[transition.Id];
+    /*std::cerr << "Add inserted transition: " << primary[transition.Id]
+              << std::endl;*/
   }
 
   [[nodiscard]] size_t Size() const { return primary.size(); }
@@ -226,13 +204,6 @@ public:
     for (const auto& [id, tr] : primary) {
       index_by_from[primary.at(tr.Id).from].primary[id] = tr;
     }
-  }
-
-  void Add(const Transition<T>& transition) {
-    primary[transition.Id] = transition;
-
-    index_by_from[primary.at(transition.Id).from].primary[transition.Id] =
-        transition;
   }
 
   std::optional<TransitionGroup> Retrieve(const std::string& input) const& {
@@ -296,19 +267,12 @@ public:
     return Where<Split>([](const auto& tr) { return !tr.delay.empty(); });
   }
 
-  [[nodiscard]] TransitionGroup WhereCond() const {
-    if constexpr (std::is_same_v<T, std::string>)
-      return Where<>([](const auto& tr) { return !tr.cond.empty(); });
-    else
-      return Where<>([](const auto& tr) { return tr.hasCondition; });
-  }
-
   [[nodiscard]] TransitionGroup WhereNone() const {
     return Where<>([](const auto& tr) {
       return tr.hasCondition && tr.delay.empty() && tr.input.empty();
     });
   }
-  [[nodiscard]] std::optional<Transition<T>> SmallestTimer() const {
+  [[nodiscard]] std::optional<Transition> SmallestTimer() const {
     const auto min = WhereTimer<>().First();
     if (!min.has_value())
       return std::nullopt;
@@ -320,26 +284,24 @@ public:
     return min_v;
   }
 
+  bool Contains(const Transition& tr) const { return primary.contains(tr.Id); }
 
-
-  bool Contains(const Transition<T>& tr) { return primary.contains(tr.Id); }
-
-  [[nodiscard]] std::optional<Transition<T>> First() const {
+  [[nodiscard]] std::optional<Transition> First() const {
     if (primary.empty()) {
       return std::nullopt;
     }
     return primary.begin()->second;
   }
 
-  [[nodiscard]] auto begin() const {
+  [[nodiscard]] auto begin() {
     return ranges::begin(primary | ranges::views::values);
   }
-  [[nodiscard]] auto end() const {
+  [[nodiscard]] auto end() {
     return ranges::end(primary | ranges::views::values);
   }
   [[nodiscard]] auto empty() const { return primary.empty(); }
 
-  TransitionGroup operator& (const TransitionGroup& other) {
+  TransitionGroup operator&(const TransitionGroup& other) {
     auto final = TransitionGroupType();
     auto first = ranges::size(primary | ranges::views::values);
     auto second = ranges::size(other.primary | ranges::views::values);
@@ -366,9 +328,25 @@ public:
     return final;
   }
 
-  friend std::ostream& operator<<(std::ostream& os, const TransitionGroup& group) {
+  TransitionGroup Merge(const TransitionGroup& other) const {
+    auto large = Size() > other.Size() ? primary : other.primary;
+    auto final = TransitionGroup{};
+    final.primary = primary;
+
+    for (auto [id, tr] : other.primary) {
+      if (auto seek = primary.find(id);
+        seek != primary.end()) {
+        final << tr;
+      }
+    }
+    final.GroupTransitions();
+    return final;
+  }
+
+  friend std::ostream& operator<<(std::ostream& os,
+                                  const TransitionGroup& group) {
     for (const auto& [id, tr] : group.primary) {
-      os << "ID: " << id << " | " << tr << std::endl;
+      os << tr << std::endl;
     }
     return os;
   }
