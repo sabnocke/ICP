@@ -1,11 +1,8 @@
 name BuildPipeline
 # Simulace CI/CD pipeliny: fetch, build, test, deploy, report, s revert cyklem při chybě.
-Input:
-    commit
-    test_result
-    deploy_approval
-Output:
-    status
+Input: commit, test_result, deploy_approval
+Output: status
+
 Variables:
     int timeout       = 8000      # maximální doba pro fázi fetch/build/test/deploy
     bool tests_passed = false
