@@ -59,7 +59,7 @@
       }
     },
     {
-      "name": "windows-msvc-ninja-debug",
+      "name": "windows-msvc-debug",
       "hidden": false,
       "inherits": [
         "base",
@@ -88,7 +88,7 @@
       }
     },
     {
-      "name": "windows-mingw-ninja-debug",
+      "name": "windows-mingw-debug",
       "displayName": "Toolchain for windows MINGW64",
       "cmakeExecutable": "C:/msys64/ucrt64/bin/cmake.exe",
       "inherits": [
@@ -131,7 +131,7 @@
     {
       "name": "build-windows-mingw-debug",
       "displayName": "Build (Debug Windows MinGW)",
-      "configurePreset": "windows-mingw-ninja-debug",
+      "configurePreset": "windows-mingw-debug",
       "description": "Builds the Debug configuration for Windows with MinGW.",
       "jobs": 0,
       "targets": [
@@ -141,7 +141,7 @@
     {
       "name": "build-windows-msvc-debug",
       "displayName": "Build (Debug Windows MSVC)",
-      "configurePreset": "windows-msvc-ninja-debug",
+      "configurePreset": "windows-msvc-debug",
       "description": "Builds the Debug configuration for Windows with MSVC.",
       "jobs": 0,
       "targets": [
