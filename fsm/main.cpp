@@ -61,22 +61,17 @@ int main(const int argc, char** argv) {
     interpret.Prepare();
     timer.tock();
     std::cerr << "Parser and interpret creation took " << timer.duration<>().count() << "ms." << std::endl;
-    std::cerr << "Elapsed: " << timer.elapsed<>().count() << "ms" << std::endl;
-    // std::cout << automat.transitions << std::endl;
-    // std::cerr << "Elapsed: " << timer.elapsed<>().count() << "ms" << std::endl;
-    std::cout << interpret.transitionGroup << std::endl;
+    std::cerr << "Variables:" << std::endl << automat.variables << std::endl;
+    timer.tick();
+    interpret.Execute();
+    timer.tock();
+    std::cerr << "Execute took " << timer.duration<>().count() << "ms." << std::endl;
+
   } catch (const Utils::ProgramTermination&) {
     return 1;
   } catch (const std::exception& e) {
     std::cerr << e.what() << std::endl;
     return 1;
   }
-  // sol::state lua{};
-  // lua.open_libraries(sol::lib::base, sol::lib::package);
-
-
-  // interpreter.Execute(false);
-  // Interpreter::Interpret<std::string>::simpleExample();
-
   return 0;
 }
