@@ -1,0 +1,28 @@
+name CoffeeMachine
+# Simulace automatu kávovaru s mletím, extrakcí, výdejem a čištěním.
+Input:
+Output: status
+
+Variables:
+    int tIdle     = 2000   # pauza před prvním cyklem
+    int tGrind    = 3000   # mlýnek
+    int tBrew     = 4000   # extrakce
+    int tDispense = 2000   # výdej kávy
+    int tClean    = 5000   # čištění
+    int cycles    = 3      # kolikrát opakovat přípravu
+    int count     = 0      # aktuální cyklus
+States:
+    state IDLE     [ return "IDLE: čekám před cyklem"; ]
+    state GRIND    [ return "GRIND: mletí zrn"; ]
+    state BREW     [ return "BREW: příprava kávy"; ]
+    state DISPENSE [ return "DISPENSE: výdej do šálku"; ]
+    state CLEAN    { count = count + 1; return "CLEAN: čištění (" + itoa(count) + "/" + itoa(cycles) + ")"; }
+    state STOPPED  [ return "STOPPED: konec cyklů"; ]
+Transitions:
+    IDLE     --> GRIND    : @ tIdle  [ count < cycles ]
+    IDLE     --> STOPPED  : @ tIdle  [ count >= cycles ]
+    GRIND    --> BREW     : @ tGrind
+    BREW     --> DISPENSE : @ tBrew
+    DISPENSE --> CLEAN    : @ tDispense
+    CLEAN    --> IDLE     : @ tClean [ count < cycles ]
+    CLEAN    --> STOPPED  : @ tClean [ count >= cycles ]

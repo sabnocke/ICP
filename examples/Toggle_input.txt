@@ -1,0 +1,5 @@
+# ms    událost
+0      toggle
+1000   toggle
+2000   toggle
+3500   toggle

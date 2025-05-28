@@ -1,0 +1,13 @@
+name Hello
+# Hello-world příklad: na 'hi' odpoví 'hello'
+Input: hi
+Output: greeting
+
+Variables:
+    # žádné
+States:
+    state WAIT  [ return ""      ]
+    state HELLO [ return hello   ]
+Transitions:
+    WAIT  --> HELLO : hi
+    HELLO --> WAIT  : @ 0

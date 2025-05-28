@@ -1,0 +1,13 @@
+name Toggle
+# přepíná mezi 0 a 1 na každej toggle
+Input: toggle
+Output: out
+
+Variables:
+    # none
+States:
+    state OFF [ return 0 ]
+    state ON  [ return 1 ]
+Transitions:
+    OFF --> ON  : toggle
+    ON  --> OFF : toggle

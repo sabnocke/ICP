@@ -1,0 +1,67 @@
+name BuildPipeline
+# Simulace CI/CD pipeliny: fetch, build, test, deploy, report, s revert cyklem při chybě.
+Input:
+    commit
+    test_result
+    deploy_approval
+Output:
+    status
+Variables:
+    int timeout       = 8000      # maximální doba pro fázi fetch/build/test/deploy
+    bool tests_passed = false
+    string last_commit = ""
+States:
+    state IDLE {
+        action {
+            output("status", "IDLE: čekám na commit");
+        }
+    }
+    state FETCH {
+        action {
+            last_commit = valueOf("commit");
+            output("status", "FETCHED:" + last_commit);
+        }
+    }
+    state BUILD {
+        action {
+            output("status", "BUILDING:" + last_commit);
+        }
+    }
+    state TEST {
+        action {
+            output("status", "TESTING:" + last_commit);
+        }
+    }
+    state DEPLOY {
+        action {
+            output("status", "DEPLOYING:" + last_commit);
+        }
+    }
+    state REPORT {
+        action {
+            if (tests_passed) {
+                output("status", "SUCCESS:" + last_commit);
+            } else {
+                output("status", "FAIL:" + last_commit);
+            }
+        }
+    }
+Transitions:
+    # Start pipeline na commit
+    IDLE   --> FETCH    : commit
+
+    # Fetch, build, test, deploy postupně s timeouty
+    FETCH  --> BUILD    : @ timeout
+    BUILD  --> TEST     : @ timeout
+    TEST   --> DEPLOY   : @ timeout
+
+    # Vyhodnocení výsledku testů
+    TEST   --> REPORT   : test_result [ strcmp(valueOf("test_result"), "pass") == 0 ]
+    TEST   --> REPORT   : test_result [ strcmp(valueOf("test_result"), "pass") != 0 ]
+
+    # Deploy a potvrzení nebo timeout
+    DEPLOY --> REPORT   : deploy_approval [ strcmp(valueOf("deploy_approval"), "yes") == 0 ]
+    DEPLOY --> REPORT   : @ timeout
+
+    # Po reportu vrať zpět do IDLE po 5 s
+    REPORT --> IDLE     : @ 5000
