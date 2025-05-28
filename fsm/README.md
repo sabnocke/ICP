@@ -9,14 +9,18 @@
 ```
 > The current version uses manifest (`vcpkg.json` and `vcpkg-configuration.json`) to download correct versions of packages
 
-1.  Building and compiling of the project is done via presets (`CMakePresets.json`).
-2. `cmake --preset windows-ucrt-debug` then
-3. `cmake --build --preset build-windows-ucrt-debug`.
-    - could the 3 be called without calling 2 first?
-4. This, if all goes well, creates compiled project in directory `./build/windows-ucrt-debug`.
+### Windows
+1. `mkdir build && cd build`
+2. `cmake .. -G "Visual Studio 17 2022" -A x64` 
+   - `-G "Visual Studio 16 2019"` can be used alternatively
+   - `-A Win32` can be used for x32 version
+3. `cmake --build . --config Debug`
 
-For linux the idea is the same, but the preset is `linux-gcc-debug` and build one is `build-linux-gcc-debug`.
-> While there is preset for that, I don't remember if it works, so TODO
+### Linux
+
+1.  `mkdir build && cd build`
+2. `cmake .. -G "Ninja"`
+3. `cmake --build . --config Debug`
 
 
 - the `CMAKE_TOOLCHAIN_FILE` is important; the path should look something like:
