@@ -15,7 +15,8 @@ namespace ParserLib {
 Parser::Parser() {
   RE2::Options options;
   options.set_case_sensitive(false);
-  name_pattern_ = std::make_unique<RE2>(R"(^\s*Name\s*:?\s*(?<c>.*)$)", options);
+  name_pattern_ =
+      std::make_unique<RE2>(R"(^\s*Name\s*:?\s*(?<c>.*)$)", options);
   comment_pattern_ = std::make_unique<RE2>(R"(^.*?:\s*?(?<c>.*)$)", options);
   variables_pattern_ = std::make_unique<RE2>(
       R"((?<type>\w+) (?<name>\w+) = (?<value>\w+))", options);
@@ -64,7 +65,7 @@ AutomatLib::Automat Parser::parseAutomat(const std::string &file) {
     }
     if (Utils::Contains(line, "State")) {
       ActualSection = States;
-      std::cerr << "Parsing states" << std::endl;
+      // std::cerr << "Parsing states" << std::endl;
       SectionHandler(line, automat);
       continue;
     }
@@ -101,21 +102,22 @@ bool Parser::SectionHandler(const std::string &line,
     }
     case Transitions: {
       automat.addTransition(parseTransition(line));
+      /*std::cerr << "Current transitions: " << std::endl << automat.transitions << std::endl;*/
       return true;
     }
     case Variables:
       automat.addVariable(parseVariable(line));
       return true;
     case Inputs:
-      for (const auto& name: parseSignal(line)) {
-        std::cerr << name << std::endl;
+      for (const auto &name : parseSignal<true>(line)) {
+        // std::cerr << name << std::endl;
         automat.addInput(name);
       }
       // automat.addInput(parseSignal(line));
       return true;
     case Outputs:
-      for (const auto& name: parseSignal(line)) {
-        std::cerr << name << std::endl;
+      for (const auto &name : parseSignal<false>(line)) {
+        // std::cerr << name << std::endl;
         automat.addOutput(name);
       }
       // automat.addOutput(parseSignal(line));
@@ -124,7 +126,7 @@ bool Parser::SectionHandler(const std::string &line,
 
   ABSL_LOG(ERROR) << "Reached SectionHandler but no valid section was chosen.";
   // throw Utils::ProgramTermination();
-  return false; //TODO or terminate?
+  return false;  //TODO or terminate?
 }
 
 State<> Parser::parseState(const std::string &line) const {
@@ -157,6 +159,7 @@ Variable Parser::parseVariable(const std::string &line) const {
   const auto trimmed = Utils::Trim(line);
   std::string type, name, value;
   if (RE2::FullMatch(trimmed, *variables_pattern_, &type, &name, &value)) {
+    /*std::cerr << "parseVariable returns " << type << ": " << name << " = " << value << std::endl;*/
     return Variable{std::move(type), std::move(name), std::move(value)};
   }
 
@@ -165,14 +168,15 @@ Variable Parser::parseVariable(const std::string &line) const {
   throw Utils::ProgramTermination();
 }
 
-Transition<> Parser::parseTransition(const std::string &line) const {
+Transition Parser::parseTransition(const std::string &line) const {
   std::string from, to, input, cond, delay;
-
   if (RE2::FullMatch(line, *transitions_pattern_, &from, &to, &input, &cond,
                      &delay)) {
     const auto cond2 = Utils::Remove(cond, '[');
     const auto cond3 = Utils::Remove(cond2, ']');
-    return Transition{from, to, input, Utils::Trim(cond3), delay};
+    auto t = Transition{from, to, input, std::move(Utils::Trim(cond3)), delay};
+    /*std::cerr << "parseTransition returns: " << t << std::endl;*/
+    return t;
   }
 
   ABSL_LOG(ERROR) << absl::StrFormat(
@@ -180,26 +184,5 @@ Transition<> Parser::parseTransition(const std::string &line) const {
   throw Utils::ProgramTermination();
 }
 
-std::vector<std::string> Parser::parseSignal(const std::string &line) const {
-  auto terminate = [n=lineNumber,l=line]() {
-    ABSL_LOG(ERROR) << absl::StrFormat("[%lu] Malformed signal definition: %s",
-                                     n, l);
-    throw Utils::ProgramTermination();
-  };
-
-  const auto result = Utils::RemovePrefix<false>(line, "input:", true);
-  if (result.empty()) {
-    terminate();
-  }
-
-  // std::cerr << result << std::endl;
-
-  auto result2 = Utils::Split(result, ',');
-  if (result2.empty()) {
-    terminate();
-  }
-
-  return Utils::TrimEach(result2);
-}
 
 }  // namespace ParserLib
