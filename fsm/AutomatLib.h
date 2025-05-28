@@ -36,7 +36,7 @@ class Automat {
      * @brief Přidá nový přechod.
      * @param result Záznam Transition.
      */
-  void addTransition(const Transition<> &result) { transitions.Add(result); }
+  void addTransition(Transition&& result) { transitions.Add(std::move(result)); }
 
   /**
      * @brief Přidá novou proměnnou.
@@ -63,7 +63,7 @@ class Automat {
   StateGroup<> states;
 
   /// Kontejner přechodů
-  TransitionGroup<std::string> transitions;
+  TransitionGroup transitions;
 
   /// Seznam vstupů
   std::vector<std::string> inputs;
