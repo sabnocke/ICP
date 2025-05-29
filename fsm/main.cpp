@@ -16,8 +16,8 @@
 void parserTest() {
   ParserLib::Parser parser;
 
-  auto [name, cond] = parser.parseState("state IDLE [ output(\"out\", 0) ]");
-  std::cout << absl::StrFormat("state %s has action %s\n", name, cond);
+  /*auto [name, cond] = parser.parseState("state IDLE [ output(\"out\", 0) ]");
+  std::cout << absl::StrFormat("state %s has action %s\n", name, cond);*/
 
   std::cout << parser.parseVariable("    int timeout = 5000") << std::endl;
 
@@ -62,10 +62,11 @@ int main(const int argc, char** argv) {
     timer.tock();
     std::cerr << "Parser and interpret creation took " << timer.duration<>().count() << "ms." << std::endl;
     std::cerr << "Variables:" << std::endl << automat.variables << std::endl;
-    timer.tick();
+    std::cerr << "States:" << std::endl << automat.states << std::endl;
+    /*timer.tick();
     interpret.Execute();
     timer.tock();
-    std::cerr << "Execute took " << timer.duration<>().count() << "ms." << std::endl;
+    std::cerr << "Execute took " << timer.duration<>().count() << "ms." << std::endl;*/
 
   } catch (const Utils::ProgramTermination&) {
     return 1;
