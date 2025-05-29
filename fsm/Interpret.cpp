@@ -1,11 +1,12 @@
 #include "Interpret.h"
 
-#include <absl/log/absl_log.h>
+#include <absl/log/log.h>
 #include <absl/strings/match.h>
 #include <re2/re2.h>
-#include <variant>
+
 #include <algorithm>
 #include <thread>
+#include <variant>
 
 #include "Utils.h"
 #include "external/sol.hpp"
@@ -35,16 +36,33 @@ std::optional<T> TestAndSetValue(const std::string& _value) {
 
 Interpret::Interpret(AutomatLib::Automat&& automat)
     : _automat(std::move(automat)) {
-  std::cerr << "Entered interpret ctor" << std::endl;
+  /*std::cerr << "Entered interpret ctor" << std::endl;*/
   lua.open_libraries(sol::lib::base);
   lua["elapsed"] = [&]() { return timer.elapsed(); };
   if (const auto file = lua.script_file("stdlib.lua"); !file.valid()) {
     const sol::error err = file;
-    ABSL_LOG(ERROR) << absl::StrFormat("Failed to open stdlib.lua: %v",
-                                       err.what());
+    LOG(ERROR) << absl::StrFormat("Failed to open stdlib.lua: %v", err.what());
     throw Utils::ProgramTermination();
   }
   activeState = stateGroup.First().Name;
+}
+Interpret::Interpret(const AutomatLib::Automat& automat) {
+  transitionGroup.primary.reserve(automat.transitions.Size() + 5); // Some reserve
+
+  transitionGroup = automat.transitions;
+  stateGroup = automat.states;
+  variableGroup = automat.variables;
+  inputs = automat.inputs;
+  outputs = automat.outputs;
+  activeState = stateGroup.First().Name;
+
+  lua.open_libraries(sol::lib::base);
+  lua["elapsed"] = [&]() { return timer.elapsed<>(); };
+  if (const auto file = lua.script_file("stdlib.lua"); !file.valid()) {
+    const sol::error err = file;
+    LOG(ERROR) << absl::StrFormat("Failed to open stdlib.lua: %v", err.what());
+    throw Utils::ProgramTermination();
+  }
 }
 
 Interpret::InterpretedValue Interpret::InterpretResult(
@@ -70,7 +88,7 @@ Interpret::InterpretedValue Interpret::InterpretResult(
   if (result.is<sol::nil_t>()) {
     return std::monostate{};
   }
-  ABSL_LOG(ERROR) << "Unknown result type";
+  LOG(ERROR) << "Unknown result type";
   throw Utils::ProgramTermination();
 }
 
@@ -80,7 +98,7 @@ void Interpret::ChangeState(const TransitionGroup& tg) {
   if (const auto t = tg.First(); t.has_value()) {
     activeState = t.value().to;
   } else {
-    ABSL_LOG(FATAL) << "No next state found, but expected one";
+    LOG(FATAL) << "No next state found, but expected one";
     throw Utils::ProgramTermination();
   }
   std::cout << "STATE: " << activeState << std::endl;
@@ -91,7 +109,7 @@ void Interpret::ChangeState(const TransitionGroup& tg) {
     //TODO what to do with the i_result?
   } else {
     const sol::error err = result;
-    ABSL_LOG(ERROR) << absl::StrFormat("Action execution error: %v",
+    LOG(ERROR) << absl::StrFormat("Action execution error: %v",
                                        err.what());
     throw Utils::ProgramTermination();
   }
@@ -102,7 +120,7 @@ void Interpret::LinkDelays() {
       [](const Transition& tr) { return !tr.delay.empty(); });
 
   if (hasDelay.None()) {
-    ABSL_LOG(INFO) << "No delay found";
+    LOG(INFO) << "No delay found";
     return;
   }
   /*std::cerr << hasDelay << std::endl;
@@ -117,8 +135,8 @@ void Interpret::LinkDelays() {
 
     if (auto val = TestAndSetValue<int>(v.Value); val.has_value()) {
       /*std::cerr << "value: " << val.value() << std::endl;*/
-      for (auto& item : mod) {
-        item.delayInt = val.value();
+      for (auto& [_, transition] : mod) {
+        transition.delayInt = val.value();
       }
     }
     /*std::cerr << "mod: " << mod << std::endl;*/
@@ -170,11 +188,15 @@ void Interpret::PrepareStates() {
   }
 }
 
-TransitionGroup Interpret::WhenConditionTrue(const TransitionGroup& group) {
+TransitionGroup Interpret::WhenConditionTrue(TransitionGroup& group) {
+  std::cerr << "Entered WhenConditionTrue" << std::endl;
+  std::cerr << group << std::endl;
   TransitionGroup on_true;
-  for (const auto& [id, transition] : group.primary) {
+  for (auto& [id, transition] : group) {
     if (!transition.hasCondition)
       continue;
+
+
 
     if (auto r = transition.function(); r.valid() && ExtractBool(r)) {
       on_true.primary[id] = transition;
@@ -190,31 +212,35 @@ TransitionGroup Interpret::WhenConditionTrue(const TransitionGroup& group) {
 
 std::optional<sol::protected_function> Interpret::TestAndSet(
     const std::string& _cond) {
+  // auto q = Utils::Quote(_cond);
   if (_cond.empty()) {
     if (const auto zero = lua.load("return true"); zero.valid()) {
       return zero.get<sol::protected_function>();
     }
     return std::nullopt;
   }
-  if (const auto primary = lua.load(_cond); primary.valid()) {
+  const auto chunk_to_load = "return " + _cond;
+  if (const auto primary = lua.load(chunk_to_load); primary.valid()) {
     return primary.get<sol::protected_function>();
   } else {
     const sol::error primary_error = primary;
-    ABSL_LOG(WARNING) << primary_error.what();  //! this might not work
+    /*LOG(WARNING) << primary_error.what();  //! this might not work*/
+    LOG(ERROR) << primary_error.what();
     if (const auto secondary = lua.load("return true"); secondary.valid()) {
       return secondary.get<sol::protected_function>();
     } else {
       const sol::error secondary_error = secondary;
-      ABSL_LOG(ERROR) << secondary_error.what();
+      LOG(ERROR) << secondary_error.what();
       return std::nullopt;
     }
   }
 }
 
 bool Interpret::ExtractBool(const sol::protected_function_result& result) {
+  std::cerr << "ExtractBool" << std::endl;
   if (!result.valid()) {
     const sol::error r_error = result;
-    ABSL_LOG(ERROR) << absl::StrFormat(
+    LOG(ERROR) << absl::StrFormat(
         "Lua runtime error during function call: %v", r_error.what());
     return false;
   }
@@ -223,11 +249,15 @@ bool Interpret::ExtractBool(const sol::protected_function_result& result) {
   const auto val_type = ret.get_type();
   auto val = InterpretResult(result);
   auto ind = val.index();
-  if (ind == 1) std::cerr << "Received: " << std::get<1>(val) << std::endl;
-  if (ind == 2) std::cerr << "Received: " << std::get<2>(val) << std::endl;
-  if (ind == 3) std::cerr << "Received: " << std::get<2>(val) << std::endl;
-  if (ind == 4) std::cerr << "Received: " << std::get<2>(val) << std::endl;
-
+  std::cerr << "variant index: " << ind << std::endl;
+  if (ind == 1)
+    std::cerr << "Received: " << std::get<1>(val) << std::endl;
+  if (ind == 2)
+    std::cerr << "Received: " << std::get<2>(val) << std::endl;
+  if (ind == 3)
+    std::cerr << "Received: " << std::get<2>(val) << std::endl;
+  if (ind == 4)
+    std::cerr << "Received: " << std::get<2>(val) << std::endl;
 
   if (val_type == sol::type::nil) {
     return false;
@@ -241,16 +271,17 @@ bool Interpret::ExtractBool(const sol::protected_function_result& result) {
 
 void Interpret::PrepareTransitions() {
   // TransitionGroup ntg;
-  for (Transition& transition : transitionGroup) {
+  for (auto& [id, transition] : transitionGroup) {
     if (transition.condition.empty())
       continue;
 
     if (auto r = TestAndSet(transition.condition);
         r.has_value() && r.value().valid()) {
+      std::cerr << r.value()().get<bool>() << std::endl;
       transition.function = r.value();
       transition.hasCondition = transition.function.valid();
     } else {
-      ABSL_LOG(ERROR) << absl::StrFormat(
+      LOG(ERROR) << absl::StrFormat(
           "Transition: %v -> %v; Error in lua runtime or missing correct "
           "definition",
           transition.from, transition.to);
@@ -282,14 +313,14 @@ std::string Interpret::ExtractInput(const std::string& line) {
   // should be <name> = <value>
   const auto s = Utils::Split(line, '=');
   if (s.size() != 2) {
-    ABSL_LOG(ERROR) << absl::StrFormat("Possibly malformed input: %v", line);
+    LOG(ERROR) << absl::StrFormat("Possibly malformed input: %v", line);
     return {};  //TODO terminate?
   }
   auto name = Utils::Trim(s[0]);
   auto value = Utils::Trim(s[1]);
   if (const auto pos = std::find(inputs.begin(), inputs.end(), name);
       pos != inputs.end()) {
-    ABSL_LOG(ERROR) << "Cannot dynamically define new signals";
+    LOG(ERROR) << "Cannot dynamically define new signals";
     return {};  //TODO terminate or not?
   }
   lua["Inputs"][name] = value;
@@ -330,6 +361,8 @@ int Interpret::Execute() {
   //TODO split into separate procedure for clarity
   std::cerr << "Entered execute" << std::endl;
   std::cerr << transitionGroup << std::endl;
+  transitionGroup.GroupTransitions();
+  std::cerr << transitionGroup << std::endl;
   while (true) {
     // First find all reachable transitions from current transition
     std::cout << "Active state: " << activeState << std::endl;
@@ -338,11 +371,12 @@ int Interpret::Execute() {
       LOG(ERROR) << "No transitions for state: " << activeState << std::endl;
       break;
     }
-    const auto& transitions_v = transitions.value();
+    auto& transitions_v = transitions.value();
     if (transitions_v.None())
       break;
     std::cerr << "Next states: " << std::endl << transitions_v << std::endl;
-
+    /*auto f = transitions_v.First().value();
+    auto F = transitions_v.primary.begin();*/
     // Find all free transitions
     if (auto r = transitions_v.WhereNone(); r.Some()) {
       ChangeState(r);

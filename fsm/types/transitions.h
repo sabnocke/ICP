@@ -73,15 +73,16 @@ class Transition {
         to(std::move(other.to)),
         input(std::move(other.input)),
         condition(std::move(other.condition)),
+        function(std::move(other.function)),
+        hasCondition(other.hasCondition),
         delay(std::move(other.delay)),
         delayInt(other.delayInt) {
-    if (other.hasCondition) {
+    if (other.function.valid()) {
       function = std::move(other.function);
-      hasCondition = true;
     } else {
       function = sol::protected_function{};
-      hasCondition = false;
     }
+    hasCondition = function.valid();
     Id = other.Id;
   }
 
@@ -149,7 +150,7 @@ class Transition {
         "%d: {%s -> %s on input: <%s> if condition: <%s|%v> after delay: "
         "<%s|%v>} ",
         transition.Id, transition.from, transition.to, transition.input,
-        transition.condition, transition.hasCondition, transition.delay,
+        transition.condition, transition.function.valid(), transition.delay,
         transition.delayInt);
     return os;
   }
@@ -164,7 +165,16 @@ class TransitionGroup {
   using TransitionGroupType = absl::flat_hash_map<unsigned, Transition>;
 
   TransitionGroupType primary{};
-  /*std::vector<Transition> transitions{};*/
+
+  /*
+   * There is an issue with this being a map of TG's since it reserves a lot of memory
+   * (each from can have multiple common transitions).
+   * One way of handling this is either making index_by_from a map of keys into primary
+   * or a map of references (pointers) into primary.
+   * Both would still require using GroupTransitions() to keep the index updated
+   * But they would differ in accessing the underlying element.
+   * Any change to this also requires a change in Retrieve()
+   */
   absl::flat_hash_map<std::string, TransitionGroup> index_by_from{};
 
   TransitionGroup() = default;
@@ -293,12 +303,23 @@ class TransitionGroup {
     return primary.begin()->second;
   }
 
-  [[nodiscard]] auto begin() {
+  [[nodiscard]] auto values() const {
     return ranges::begin(primary | ranges::views::values);
   }
-  [[nodiscard]] auto end() {
-    return ranges::end(primary | ranges::views::values);
+
+  [[nodiscard]] auto begin() {
+    return primary.begin();
   }
+  [[nodiscard]] auto cbegin() const {
+    return primary.cbegin();
+  }
+  [[nodiscard]] auto end() {
+    return primary.end();
+  }
+  [[nodiscard]] auto cend() const {
+    return primary.cend();
+  }
+
   [[nodiscard]] auto empty() const { return primary.empty(); }
 
   TransitionGroup operator&(const TransitionGroup& other) {

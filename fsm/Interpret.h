@@ -11,8 +11,6 @@
  */
 #pragma once
 
-#include <absl/log/log.h>
-
 #include <thread>
 
 #include "AutomatLib.h"
@@ -27,7 +25,6 @@ using namespace types;
  * @brief Spouští a interpretuje běh konečného automatu.
  */
 class Interpret {
-
   /// @brief Lua state for executing state actions and interpreting transition conditions
   ///
   /// @attention Important Sol2 lifetime management \n \n
@@ -95,7 +92,7 @@ class Interpret {
   Timer<> timer{};
 
   void WaitShortestTimer(const TransitionGroup& group) {
-    if (auto shortest = group.SmallestTimer(); shortest.has_value()) {
+    if (const auto shortest = group.SmallestTimer(); shortest.has_value()) {
       const auto duration =
           std::chrono::milliseconds(shortest.value().delayInt);
       std::this_thread::sleep_for(duration);
@@ -104,8 +101,7 @@ class Interpret {
     }
   }
 
-  static TransitionGroup WhenConditionTrue(
-      const TransitionGroup& group);
+  static TransitionGroup WhenConditionTrue(TransitionGroup& group);
 
  public:
   /// Skupina přechodů vybraná k aktuálnímu zpracování
@@ -121,23 +117,7 @@ class Interpret {
    * @param automat R-hodnota instance třídy Automat.
    */
   explicit Interpret(AutomatLib::Automat&& automat);
-  explicit Interpret(const AutomatLib::Automat& automat) {
-    transitionGroup = automat.transitions;
-    stateGroup = automat.states;
-    variableGroup = automat.variables;
-    inputs = automat.inputs;
-    outputs = automat.outputs;
-    activeState = stateGroup.First().Name;
-
-    lua.open_libraries(sol::lib::base);
-    lua["elapsed"] = [&]() { return timer.elapsed<>(); };
-    if (const auto file = lua.script_file("stdlib.lua"); !file.valid()) {
-      const sol::error err = file;
-      LOG(ERROR) << absl::StrFormat("Failed to open stdlib.lua: %v",
-                                    err.what());
-      throw Utils::ProgramTermination();
-    }
-  }
+  explicit Interpret(const AutomatLib::Automat& automat);
 
   /**
    * @brief Statická ukázková metoda demonstrující jednoduché použití interpretu.
