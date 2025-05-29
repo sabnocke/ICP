@@ -6,7 +6,9 @@ Output: out1
 Variables:
     int timeout = 5000
 # States:
-state IDLE [ output("out1", 0) ]
+state IDLE [
+    output("out1", 0)
+    ]
 state ACTIVE [ output("out1", 1) ]
 state TIMING [ ]
 Transitions:
