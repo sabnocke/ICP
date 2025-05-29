@@ -48,7 +48,7 @@ class Parser {
      * @param line Text řádku.
      * @return pair{název, kód akce} nebo nullopt.
      */
-  [[nodiscard]] State<> parseState(const std::string &line) const;
+  [[nodiscard]] std::optional<State<>> parseState(const std::string &line) const;
 
   /**
      * @brief Zkusí rozparsovat proměnnou.
@@ -108,6 +108,9 @@ class Parser {
 
   Section ActualSection = Name; /**< Aktuální zpracovávaná sekce */
   size_t lineNumber = 0;
+  mutable bool collecting = false;
+  mutable std::stringstream collector;
+  mutable size_t bracketCounter = 0;
 
   std::unique_ptr<RE2> name_pattern_{};        /**< Regex pro jméno */
   std::unique_ptr<RE2> comment_pattern_{};     /**< Regex pro komentář */

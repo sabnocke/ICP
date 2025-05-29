@@ -63,7 +63,7 @@ AutomatLib::Automat Parser::parseAutomat(const std::string &file) {
       ActualSection = Variables;
       continue;
     }
-    if (Utils::Contains(line, "State")) {
+    if (collecting || Utils::Contains(line, "State")) {
       ActualSection = States;
       // std::cerr << "Parsing states" << std::endl;
       SectionHandler(line, automat);
@@ -85,6 +85,10 @@ AutomatLib::Automat Parser::parseAutomat(const std::string &file) {
     }
     SectionHandler(line, automat);
   }
+  if (collecting) {
+    LOG(ERROR) << "Automat is still collecting split definition of state";
+    throw Utils::ProgramTermination();
+  }
   return std::move(automat);
 }
 
@@ -97,7 +101,10 @@ bool Parser::SectionHandler(const std::string &line,
     case Comment:
       return true;
     case States: {
-      automat.addState(parseState(line));
+      if (const auto val = parseState(line); val.has_value()) {
+        automat.addState(val.value());
+      }
+      // automat.addState(parseState(line));
       return true;
     }
     case Transitions: {
@@ -129,12 +136,36 @@ bool Parser::SectionHandler(const std::string &line,
   return false;  //TODO or terminate?
 }
 
-State<> Parser::parseState(const std::string &line) const {
-  const auto trimmed = Utils::Trim(line);
+std::optional<State<>> Parser::parseState(const std::string &line) const {
+  auto trimmed = Utils::Trim(line);
   std::string name, code;
+  const auto r1 = std::count(line.begin(), line.end(), '[');
+  const auto r2 = std::count(line.begin(), line.end(), ']');
+  bracketCounter += r1 - r2;
+  /*std::cerr << "bracketCounter " << bracketCounter << std::endl;
+  std::cerr << "line: " << line << std::endl;*/
+  if (collecting && bracketCounter != 0) {
+    /*std::cerr << "Split definition is still present" << std::endl;*/
+    collector << line;
+    return std::nullopt;
+  }
+  if (bracketCounter != 0) {
+    /*std::cerr << "Detected split definition" << std::endl;*/
+    collecting = true;
+    collector << line;
+    return std::nullopt;
+  }
+  if (collecting /*&& bracketCounter == 0*/) {
+    collector << line;
+    trimmed = Utils::Trim(collector.str());
+
+    collector.str("");
+    collector.clear();
+    collecting = false;
+  }
 
   if (RE2::FullMatch(trimmed, *states_pattern_, &name, &code)) {
-    return {Utils::Trim(name), Utils::Trim(code)};
+    return State{Utils::Trim(name), Utils::Trim(code)};
   }
 
   ABSL_LOG(ERROR) << absl::StrFormat("[%lu] Malformed state definition: %s",
@@ -183,6 +214,5 @@ Transition Parser::parseTransition(const std::string &line) const {
       "[%lu] Malformed transition definition: %s", lineNumber, line);
   throw Utils::ProgramTermination();
 }
-
 
 }  // namespace ParserLib
