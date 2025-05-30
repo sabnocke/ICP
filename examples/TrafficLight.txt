@@ -1,0 +1,17 @@
+name TrafficLight
+# křižovatka + timery
+Input:
+Output: red, green, yellow
+
+Variables:
+    int tR = 5000
+    int tG = 5000
+    int tY = 2000
+States:
+    state RED    [ return red ]
+    state GREEN  [ return green ]
+    state YELLOW [ return yellow ]
+Transitions:
+    RED    --> GREEN  : @ tR
+    GREEN  --> YELLOW : @ tG
+    YELLOW --> RED    : @ tY

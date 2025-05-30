@@ -1,0 +1,25 @@
+name WashingMachine
+# Simulace pracího cyklu pračky: plnění, praní, máchání, odstřeďování, hotovo.
+Input:
+Output: status
+
+Variables:
+    int tIdle   = 1000   # čas před startem cyklu
+    int tFill   = 3000   # plnění
+    int tWash   = 5000   # praní
+    int tRinse  = 4000   # máchání
+    int tSpin   = 2000   # odstřeďování
+States:
+    state IDLE    [ return status ]  # čekání před spuštěním
+    state FILL    [ return status ]
+    state WASH    [ return status ]
+    state RINSE   [ return status ]
+    state SPIN    [ return status ]
+    state DONE    [ return status ]
+Transitions:
+    IDLE    --> FILL  : @ tIdle
+    FILL    --> WASH  : @ tFill
+    WASH    --> RINSE : @ tWash
+    RINSE   --> SPIN  : @ tRinse
+    SPIN    --> DONE  : @ tSpin
+    DONE    --> IDLE  : @ 2000     # po dokončení pauza před dalším cyklem
