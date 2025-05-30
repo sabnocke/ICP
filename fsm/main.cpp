@@ -12,6 +12,7 @@
 #include "ParserLib.h"
 #include "external/sol.hpp"
 
+#define ABSL_MIN_LOG_LEVEL absl::LogSeverity::kInfo
 
 void parserTest() {
   ParserLib::Parser parser;
@@ -50,7 +51,7 @@ int main(const int argc, char** argv) {
 
   absl::InitializeLog();
   // absl::SetMinLogLevel(absl::LogSeverityAtLeast::kInfo); //<-- this doesn't do anything of use
-
+  LOG(INFO) << "Initialized logging";
   try {
     Timer<> timer;
     timer.tick();
@@ -63,10 +64,10 @@ int main(const int argc, char** argv) {
     std::cerr << "Parser and interpret creation took " << timer.duration<>().count() << "ms." << std::endl;
     std::cerr << "Variables:" << std::endl << automat.variables << std::endl;
     std::cerr << "States:" << std::endl << automat.states << std::endl;
-    /*timer.tick();
+    timer.tick();
     interpret.Execute();
     timer.tock();
-    std::cerr << "Execute took " << timer.duration<>().count() << "ms." << std::endl;*/
+    std::cerr << "Execute took " << timer.duration<>().count() << "ms." << std::endl;
 
   } catch (const Utils::ProgramTermination&) {
     return 1;
