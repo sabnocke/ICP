@@ -12,7 +12,7 @@ state IDLE [
 state ACTIVE [ output("out1", 1) ]
 state TIMING [ ]
 Transitions:
-    IDLE --> ACTIVE: in1 [ tonumber(valueof("in")) == 1 ]
-    ACTIVE --> TIMING: in1 [ tonumber(valueof("in")) == 0 ]
-    TIMING --> ACTIVE : in1 [ tonumber(valueof("in")) == 1 ]
+    IDLE --> ACTIVE: in1 [ tonumber(valueof("in1")) == 1 ]
+    ACTIVE --> TIMING: in1 [ tonumber(valueof("in1")) == 0 ]
+    TIMING --> ACTIVE : in1 [ tonumber(valueof("in1")) == 1 ]
     TIMING --> IDLE : @ timeout
