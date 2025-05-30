@@ -26,9 +26,11 @@ set(PROJECT_SOURCES
         EditorMode.h
         AutomatModel.cpp
         AutomatModel.h
-
+	
         ${CMAKE_SOURCE_DIR}/fsm/ParserLib.cpp
         ${CMAKE_SOURCE_DIR}/fsm/ParserLib.h
+	    ${CMAKE_SOURCE_DIR}/fsm/Interpret.cpp
+    	${CMAKE_SOURCE_DIR}/fsm/Interpret.h
         ${CMAKE_SOURCE_DIR}/fsm/Utils.cpp
         ${CMAKE_SOURCE_DIR}/fsm/Utils.h
         ${CMAKE_SOURCE_DIR}/fsm/AutomatLib.h
@@ -49,20 +51,18 @@ if(${QT_VERSION_MAJOR} GREATER_EQUAL 6)
     )
     target_include_directories(icp-qt PRIVATE
       ${CMAKE_SOURCE_DIR}/fsm
-      ${fast_float_SOURCE_DIR}/include
+      ${CMAKE_SOURCE_DIR}/fsm/external
     )
 
     target_link_libraries(icp-qt PRIVATE
       Qt${QT_VERSION_MAJOR}::Widgets
-      reproc++
       range-v3::range-v3
       re2::re2
-      fast_float
       absl::btree
       absl::container_common
       absl::log
       absl::log_initialize
-      rxcpp
+      lua
     )
 # Define target properties for Android with Qt 6 as:
 #    set_property(TARGET icp-qt APPEND PROPERTY QT_ANDROID_PACKAGE_SOURCE_DIR
@@ -81,20 +81,18 @@ else()
         )
         target_include_directories(icp-qt PRIVATE
           ${CMAKE_SOURCE_DIR}/fsm
-          ${fast_float_SOURCE_DIR}/include
+          ${CMAKE_SOURCE_DIR}/fsm/external
         )
 
         target_link_libraries(icp-qt PRIVATE
           Qt${QT_VERSION_MAJOR}::Widgets
-          reproc++
           range-v3::range-v3
           re2::re2
-          fast_float
           absl::btree
           absl::container_common
           absl::log
           absl::log_initialize
-          rxcpp
+          lua
         )
     endif()
 endif()
