@@ -12,12 +12,12 @@ Variables:
     int cycles    = 3      # kolikrát opakovat přípravu
     int count     = 0      # aktuální cyklus
 States:
-    state IDLE     [ return "IDLE: čekám před cyklem"; ]
-    state GRIND    [ return "GRIND: mletí zrn"; ]
-    state BREW     [ return "BREW: příprava kávy"; ]
-    state DISPENSE [ return "DISPENSE: výdej do šálku"; ]
-    state CLEAN    [ count = count + 1; return "CLEAN: čištění (" .. tonumber(count) .. "/" + tonumber(cycles) .. ")"; ]
-    state STOPPED  [ return "STOPPED: konec cyklů"; ]
+    state IDLE     [ return "IDLE: cekam pred cyklem"; ]
+    state GRIND    [ return "GRIND: mleti zrn"; ]
+    state BREW     [ return "BREW: priprava kavy"; ]
+    state DISPENSE [ return "DISPENSE: vydej do salku"; ]
+    state CLEAN    [ count = count + 1; return "CLEAN: cisteni (" .. tonumber(count) .. "/" + tonumber(cycles) .. ")"; ]
+    state STOPPED  [ return "STOPPED: konec cyklu"; ]
 Transitions:
     IDLE     --> GRIND    : [ count < cycles ] @ tIdle
     IDLE     --> STOPPED  : [ count >= cycles ] @ tIdle
