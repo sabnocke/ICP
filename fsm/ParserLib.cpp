@@ -19,11 +19,11 @@ Parser::Parser() {
       std::make_unique<RE2>(R"(^\s*Name\s*:?\s*(?<c>.*)$)", options);
   comment_pattern_ = std::make_unique<RE2>(R"(^.*?:\s*?(?<c>.*)$)", options);
   variables_pattern_ = std::make_unique<RE2>(
-      R"((?<type>\w+) (?<name>\w+) = (?<value>\w+))", options);
+      R"(\s*(?<type>\w+)\s*(?<name>\w+)\s*=\s*(?<value>\w+)\s*)", options);
   states_pattern_ =
       std::make_unique<RE2>(R"(state (?<name>\w+) *\[(?<code>.*)\])", options);
   transitions_pattern_ = std::make_unique<RE2>(
-      R"(^\s*(?<from>\w+)\s*-->\s*(?<to>\w+)\s*:\s*(?:(?<input>\w*)?\s*(?<cond>\[.*\])?\s*@?\s*(\w*)?)$)",
+      R"(^\s*(?<from>\w+)\s*-->\s*(?<to>\w+)\s*:\s*(?:(?<input>\w*)?\s*(?<cond>\[.*\])?\s*@?\s*(\w*)?)\s*$)",
       options);
   input_pattern_ = std::make_unique<RE2>(R"(^.*?:?\s*(?<name>\w*)$)", options);
   output_pattern_ = std::make_unique<RE2>(R"(^.*?:?\s*(?<name>\w*)$)", options);
@@ -46,6 +46,9 @@ AutomatLib::Automat Parser::parseAutomat(const std::string &file) {
   std::string line;
 
   while (std::getline(ifs, line)) {
+    if (Utils::Contains(line, '#')) {
+      line = Utils::Split(line, '#')[0];
+    }
     lineNumber++;
     if (line.empty())
       continue;
@@ -64,11 +67,13 @@ AutomatLib::Automat Parser::parseAutomat(const std::string &file) {
       // Comments are ignored
       continue;
     }
-    if (Utils::Contains(line, "Variable")) {
+    if (Utils::Contains(line, "Variables")) {
       ActualSection = Variables;
       continue;
     }
     if (collecting || Utils::Contains(line, "State")) {
+      if (absl::EqualsIgnoreCase(line, "states:"))
+         continue;
       ActualSection = States;
       SectionHandler(line, automat);
       continue;
@@ -150,6 +155,7 @@ bool Parser::SectionHandler(const std::string &line,
 }
 
 std::optional<State<>> Parser::parseState(const std::string &line) const {
+
   auto trimmed = Utils::Trim(line);
   std::string name, code;
   const auto r1 = std::count(line.begin(), line.end(), '[');
@@ -202,6 +208,7 @@ std::string Parser::extractName(const std::string &line) const {
 Variable Parser::parseVariable(const std::string &line) const {
   const auto trimmed = Utils::Trim(line);
   std::string type, name, value;
+
   if (RE2::FullMatch(trimmed, *variables_pattern_, &type, &name, &value)) {
     /*std::cerr << "parseVariable returns " << type << ": " << name << " = " << value << std::endl;*/
     return Variable{std::move(type), std::move(name), std::move(value)};

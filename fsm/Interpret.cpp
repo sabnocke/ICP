@@ -111,9 +111,10 @@ void Interpret::ChangeState(const TransitionGroup& tg) {
     /*std::cerr << "Result index: " << i_result.index() << std::endl;*/
     if (const auto i_result = InterpretResult(r); i_result.index() == 4) {
       std::cout << "OUTPUT: " << std::get<4>(i_result) << std::endl;
-    } else if (i_result.index() == 1) {}
-    else {
-      LOG(ERROR) << "Invalid (or unexpected) result type index: " << i_result.index() << std::endl;
+    } else if (i_result.index() == 1) {
+    } else {
+      LOG(ERROR) << "Invalid (or unexpected) result type index: "
+                 << i_result.index() << std::endl;
       //TODO what to do?
     }
   } else {
@@ -154,7 +155,6 @@ void Interpret::LinkDelays() {
 }
 
 void Interpret::PrepareVariables() {
-  //TODO doest this work?
   for (const auto& variable : variableGroup.Get()) {
     auto [Type, Name, Value] = variable.Tuple();
     std::cerr << "Variable: " << Type << " " << Name << std::endl;
@@ -208,6 +208,11 @@ TransitionGroup Interpret::WhenConditionTrue(const TransitionGroup& group) {
       on_true.primary[id] = transition;
     } else if (r.valid()) {
     } else {
+      if (const auto something = TestAndSet(transition.condition);
+        something.has_value() && something.value().valid()) {
+        auto result = something.value()();
+
+      }
       const sol::error err = r;
       LOG(ERROR) << err.what();
       throw Utils::ProgramTermination();
@@ -225,7 +230,14 @@ std::optional<sol::protected_function> Interpret::TestAndSet(
     }
     return std::nullopt;
   }
-  const auto chunk_to_load = "return " + _cond;
+  std::string chunk_to_load;
+  if (!Utils::Contains(_cond, "return")) {
+    chunk_to_load = "return " + _cond;
+  } else {
+    chunk_to_load = _cond;
+  }
+
+  std::cerr << chunk_to_load << std::endl;
   if (const auto primary = lua.load(chunk_to_load); primary.valid()) {
     return primary.get<sol::protected_function>();
   } else {
@@ -381,6 +393,7 @@ int Interpret::Execute() {
     // First find all reachable transitions from current transition
     std::cout << "Active state: " << activeState << std::endl;
     auto transitions = transitionGroup.Retrieve(activeState);
+    transitions->GroupTransitions();
     if (!transitions.has_value()) {
       LOG(ERROR) << "No transitions for state: " << activeState << std::endl;
       break;
@@ -402,14 +415,35 @@ int Interpret::Execute() {
     /*auto [condition_present, condition_missing] = transitions_v.WhereCondition<true>();*/
     /*std::cerr << "Condition present: " << condition_present << std::endl;
     std::cerr << "Condition missing: " << condition_missing << std::endl;*/
-    auto [event_true, event_false] = transitions_v.WhereEvent<true>();
-    auto [timer_true, timer_false] = transitions_v.WhereTimer<true>();
+    TransitionGroup event_true;
+    TransitionGroup event_false;
+    TransitionGroup timer_true;
+    TransitionGroup timer_false;
+    for (auto item : transitions_v) {
+      if (!item.second.input.empty())
+        event_true << item.second;
+      else
+        event_false << item.second;
+      if (item.second.delayInt == 0)
+        timer_false << item.second;
+      else
+        timer_true << item.second;
+    }
+    /*auto event_false  = transitions_v.Where([](const auto& tr) {
+      return tr.input.empty();
+    });
+    auto event_true = transitions_v.WhereEvent<false>();*/
+    // auto event_true = t;
+    /*auto [event_true, event_false] = transitions_v.WhereEvent<true>();*/
+    /*auto timer_true = transitions_v.WhereTimer<false>();
+    auto timer_false = transitions_v.Where<>([](const auto& tr) { return tr.delay.empty(); });*/
     std::cerr << event_true << std::endl;
-    if (auto zero = event_false & timer_false; zero.Some()) {
+    std::cerr << event_false << std::endl;
+    if (auto zero = timer_false & event_false; zero.Some()) {
       ChangeState(zero);
       continue;
     }
-    if (auto first = event_false & timer_true; first.Some()) {
+    if (auto first = timer_true & event_false; first.Some()) {
       if (WaitShortestTimer(first))
         continue;
     }
@@ -422,7 +456,8 @@ int Interpret::Execute() {
     if (code == 0)
       continue;
 
-    std::cerr << "Line parse result: " << code << " " << signalName << std::endl;
+    std::cerr << "Line parse result: " << code << " " << signalName
+              << std::endl;
 
     if (auto second = event_true & timer_false; second.Some()) {
       std::cerr << "second: " << second << std::endl;
@@ -440,50 +475,6 @@ int Interpret::Execute() {
       std::cerr << "Result: " << inputs << std::endl;
       WaitShortestTimer(inputs);
     }
-
-    /*std::cerr << "zero: " << zero << std::endl;
-    std::cerr << "first: " << first << std::endl;*/
-    /*std::cerr << "second: " << second << std::endl;
-    std::cerr << "third: " << third << std::endl;*/
-
-    /*auto all = WhenConditionTrue(transitionGroup);
-    std::cerr << all << std::endl;*/
-
-    /*break;
-    // Find all transitions that have condition, but no input
-    if (auto r = event_false; r.Some()) {
-      // set timer for smallest delay transition
-      if (auto smallest = r.SmallestTimer(); smallest.has_value()) {
-        WaitShortestTimer(r);
-        continue;
-      }
-    }
-    if (auto& r = event_true; r.Some()) {
-      std::string line;
-      std::getline(std::cin, line);
-      auto [code, signalName] = ParseStdinInput(line);
-      if (code == -1)
-        break;
-      if (code == 0)
-        continue;
-
-      if (auto r1 = event_true & timer_false; r.Some()) {
-        // All transitions with input but no timer
-        auto inputs = r1.Where([signalName](const Transition& tr) {
-          return tr.input == signalName;
-        });
-
-        ChangeState(inputs);
-        continue;
-      }
-      if (auto r2 = event_true & timer_true; r2.Some()) {
-        // All transitions with input and timer
-        auto inputs = r2.Where([signalName](const Transition& tr) {
-          return tr.input == signalName;
-        });
-        WaitShortestTimer(inputs);
-      }
-    }*/
   }
   return 0;
 }

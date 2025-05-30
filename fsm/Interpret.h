@@ -103,7 +103,7 @@ class Interpret {
     return false;
   }
 
-  static TransitionGroup WhenConditionTrue(const TransitionGroup& group);
+  TransitionGroup WhenConditionTrue(const TransitionGroup& group);
 
  public:
   /// Skupina přechodů vybraná k aktuálnímu zpracování
