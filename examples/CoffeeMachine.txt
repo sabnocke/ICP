@@ -16,13 +16,13 @@ States:
     state GRIND    [ return "GRIND: mletí zrn"; ]
     state BREW     [ return "BREW: příprava kávy"; ]
     state DISPENSE [ return "DISPENSE: výdej do šálku"; ]
-    state CLEAN    { count = count + 1; return "CLEAN: čištění (" + itoa(count) + "/" + itoa(cycles) + ")"; }
+    state CLEAN    [ count = count + 1; return "CLEAN: čištění (" .. tonumber(count) .. "/" + tonumber(cycles) .. ")"; ]
     state STOPPED  [ return "STOPPED: konec cyklů"; ]
 Transitions:
-    IDLE     --> GRIND    : @ tIdle  [ count < cycles ]
-    IDLE     --> STOPPED  : @ tIdle  [ count >= cycles ]
+    IDLE     --> GRIND    : [ count < cycles ] @ tIdle
+    IDLE     --> STOPPED  : [ count >= cycles ] @ tIdle
     GRIND    --> BREW     : @ tGrind
     BREW     --> DISPENSE : @ tBrew
     DISPENSE --> CLEAN    : @ tDispense
-    CLEAN    --> IDLE     : @ tClean [ count < cycles ]
-    CLEAN    --> STOPPED  : @ tClean [ count >= cycles ]
+    CLEAN    --> IDLE     : [ count < cycles ] @ tClean
+    CLEAN    --> STOPPED  : [ count >= cycles ] @ tClean 
