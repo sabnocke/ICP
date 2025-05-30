@@ -91,17 +91,19 @@ class Interpret {
 
   Timer<> timer{};
 
-  void WaitShortestTimer(const TransitionGroup& group) {
+  bool WaitShortestTimer(const TransitionGroup& group) {
     if (const auto shortest = group.SmallestTimer(); shortest.has_value()) {
       const auto duration =
           std::chrono::milliseconds(shortest.value().delayInt);
       std::this_thread::sleep_for(duration);
 
       ChangeState(group);
+      return true;
     }
+    return false;
   }
 
-  static TransitionGroup WhenConditionTrue(TransitionGroup& group);
+  static TransitionGroup WhenConditionTrue(const TransitionGroup& group);
 
  public:
   /// Skupina přechodů vybraná k aktuálnímu zpracování

@@ -47,7 +47,8 @@ Interpret::Interpret(AutomatLib::Automat&& automat)
   activeState = stateGroup.First().Name;
 }
 Interpret::Interpret(const AutomatLib::Automat& automat) {
-  transitionGroup.primary.reserve(automat.transitions.Size() + 5); // Some reserve
+  transitionGroup.primary.reserve(automat.transitions.Size() +
+                                  5);  // Some reserve
 
   transitionGroup = automat.transitions;
   stateGroup = automat.states;
@@ -95,7 +96,9 @@ Interpret::InterpretedValue Interpret::InterpretResult(
 void Interpret::ChangeState(const TransitionGroup& tg) {
   timer.tock();
 
-  if (const auto t = tg.First(); t.has_value()) {
+  const auto cond_true = WhenConditionTrue(tg);
+
+  if (const auto t = cond_true.First(); t.has_value()) {
     activeState = t.value().to;
   } else {
     LOG(FATAL) << "No next state found, but expected one";
@@ -104,13 +107,18 @@ void Interpret::ChangeState(const TransitionGroup& tg) {
   std::cout << "STATE: " << activeState << std::endl;
   const auto [Name, Action] = stateGroupFunction.Find(activeState).First();
   if (const auto result = Action(); result.valid()) {
-    auto r = sol::object(result[0]);
-    auto i_result = InterpretResult(r);
-    //TODO what to do with the i_result?
+    const auto r = sol::object(result[0]);
+    /*std::cerr << "Result index: " << i_result.index() << std::endl;*/
+    if (const auto i_result = InterpretResult(r); i_result.index() == 4) {
+      std::cout << "OUTPUT: " << std::get<4>(i_result) << std::endl;
+    } else if (i_result.index() == 1) {}
+    else {
+      LOG(ERROR) << "Invalid (or unexpected) result type index: " << i_result.index() << std::endl;
+      //TODO what to do?
+    }
   } else {
     const sol::error err = result;
-    LOG(ERROR) << absl::StrFormat("Action execution error: %v",
-                                       err.what());
+    LOG(ERROR) << absl::StrFormat("Action execution error: %v", err.what());
     throw Utils::ProgramTermination();
   }
 }
@@ -188,15 +196,13 @@ void Interpret::PrepareStates() {
   }
 }
 
-TransitionGroup Interpret::WhenConditionTrue(TransitionGroup& group) {
+TransitionGroup Interpret::WhenConditionTrue(const TransitionGroup& group) {
   std::cerr << "Entered WhenConditionTrue" << std::endl;
   std::cerr << group << std::endl;
   TransitionGroup on_true;
-  for (auto& [id, transition] : group) {
+  for (const auto& [id, transition] : group.primary) {
     if (!transition.hasCondition)
       continue;
-
-
 
     if (auto r = transition.function(); r.valid() && ExtractBool(r)) {
       on_true.primary[id] = transition;
@@ -240,8 +246,8 @@ bool Interpret::ExtractBool(const sol::protected_function_result& result) {
   std::cerr << "ExtractBool" << std::endl;
   if (!result.valid()) {
     const sol::error r_error = result;
-    LOG(ERROR) << absl::StrFormat(
-        "Lua runtime error during function call: %v", r_error.what());
+    LOG(ERROR) << absl::StrFormat("Lua runtime error during function call: %v",
+                                  r_error.what());
     return false;
   }
 
@@ -251,13 +257,14 @@ bool Interpret::ExtractBool(const sol::protected_function_result& result) {
   auto ind = val.index();
   std::cerr << "variant index: " << ind << std::endl;
   if (ind == 1)
-    std::cerr << "Received: " << std::get<1>(val) << std::endl;
+    std::cerr << "Received: " << std::boolalpha << std::get<1>(val)
+              << std::endl;
   if (ind == 2)
     std::cerr << "Received: " << std::get<2>(val) << std::endl;
   if (ind == 3)
-    std::cerr << "Received: " << std::get<2>(val) << std::endl;
+    std::cerr << "Received: " << std::get<3>(val) << std::endl;
   if (ind == 4)
-    std::cerr << "Received: " << std::get<2>(val) << std::endl;
+    std::cerr << "Received: " << std::get<4>(val) << std::endl;
 
   if (val_type == sol::type::nil) {
     return false;
@@ -272,8 +279,8 @@ bool Interpret::ExtractBool(const sol::protected_function_result& result) {
 void Interpret::PrepareTransitions() {
   // TransitionGroup ntg;
   for (auto& [id, transition] : transitionGroup) {
-    if (transition.condition.empty())
-      continue;
+    /*if (transition.condition.empty())
+      continue;*/
 
     if (auto r = TestAndSet(transition.condition);
         r.has_value() && r.value().valid()) {
@@ -292,6 +299,7 @@ void Interpret::PrepareTransitions() {
 
 void Interpret::PrepareSignals() {
   for (auto& signal : inputs) {
+    std::cerr << "Signal: " << signal << std::endl;
     lua["Inputs"][signal] = "";
   }
   std::cout << std::endl;
@@ -310,16 +318,22 @@ void Interpret::Prepare() {
 
 std::string Interpret::ExtractInput(const std::string& line) {
   auto l = Utils::RemovePrefix<false>(line, "input:");
+  /*std::cerr << "Removed prefix: " << l << std::endl;*/
   // should be <name> = <value>
-  const auto s = Utils::Split(line, '=');
+  const auto s = Utils::Split(l, '=');
   if (s.size() != 2) {
     LOG(ERROR) << absl::StrFormat("Possibly malformed input: %v", line);
     return {};  //TODO terminate?
   }
   auto name = Utils::Trim(s[0]);
+  /*std::cerr << "name: " << name << std::endl;*/
   auto value = Utils::Trim(s[1]);
+  /*std::cerr << "Value: " << value << std::endl;*/
+  /*for (auto& item : inputs) {
+    std::cerr << "Item: " << item << std::endl;
+  }*/
   if (const auto pos = std::find(inputs.begin(), inputs.end(), name);
-      pos != inputs.end()) {
+      pos == inputs.end()) {
     LOG(ERROR) << "Cannot dynamically define new signals";
     return {};  //TODO terminate or not?
   }
@@ -343,6 +357,7 @@ bool Interpret::ExtractCommand(const std::string& line) {
 std::pair<int, std::string> Interpret::ParseStdinInput(
     const std::string& line) {
   // INPUT, CMD, LOG
+  std::cerr << "Line: " << line << std::endl;
   if (Utils::Contains(line, "input")) {
     std::string signalName = ExtractInput(line);
     return {1, ExtractInput(line)};
@@ -358,7 +373,6 @@ std::pair<int, std::string> Interpret::ParseStdinInput(
 }
 
 int Interpret::Execute() {
-  //TODO split into separate procedure for clarity
   std::cerr << "Entered execute" << std::endl;
   std::cerr << transitionGroup << std::endl;
   transitionGroup.GroupTransitions();
@@ -374,6 +388,7 @@ int Interpret::Execute() {
     auto& transitions_v = transitions.value();
     if (transitions_v.None())
       break;
+
     std::cerr << "Next states: " << std::endl << transitions_v << std::endl;
     /*auto f = transitions_v.First().value();
     auto F = transitions_v.primary.begin();*/
@@ -383,10 +398,58 @@ int Interpret::Execute() {
       continue;
     }
 
-    auto transitionsCond = WhenConditionTrue(transitions_v);
-    break;
-    auto [event_true, event_false] = transitionsCond.WhereEvent<true>();
-    auto [timer_true, timer_false] = transitionsCond.WhereTimer<true>();
+    /*auto transitionsCond = WhenConditionTrue(transitions_v);*/
+    /*auto [condition_present, condition_missing] = transitions_v.WhereCondition<true>();*/
+    /*std::cerr << "Condition present: " << condition_present << std::endl;
+    std::cerr << "Condition missing: " << condition_missing << std::endl;*/
+    auto [event_true, event_false] = transitions_v.WhereEvent<true>();
+    auto [timer_true, timer_false] = transitions_v.WhereTimer<true>();
+    std::cerr << event_true << std::endl;
+    if (auto zero = event_false & timer_false; zero.Some()) {
+      ChangeState(zero);
+      continue;
+    }
+    if (auto first = event_false & timer_true; first.Some()) {
+      if (WaitShortestTimer(first))
+        continue;
+    }
+
+    std::string line;
+    std::getline(std::cin, line);
+    auto [code, signalName] = ParseStdinInput(line);
+    if (code == -1)
+      break;
+    if (code == 0)
+      continue;
+
+    std::cerr << "Line parse result: " << code << " " << signalName << std::endl;
+
+    if (auto second = event_true & timer_false; second.Some()) {
+      std::cerr << "second: " << second << std::endl;
+      auto inputs = second.Where([signalName](const Transition& tr) {
+        return tr.input == signalName;
+      });
+      std::cerr << "Result: " << inputs << std::endl;
+      ChangeState(inputs);
+      continue;
+    }
+    if (auto third = event_true & timer_true; third.Some()) {
+      auto inputs = third.Where([signalName](const Transition& tr) {
+        return tr.input == signalName;
+      });
+      std::cerr << "Result: " << inputs << std::endl;
+      WaitShortestTimer(inputs);
+    }
+
+    /*std::cerr << "zero: " << zero << std::endl;
+    std::cerr << "first: " << first << std::endl;*/
+    /*std::cerr << "second: " << second << std::endl;
+    std::cerr << "third: " << third << std::endl;*/
+
+    /*auto all = WhenConditionTrue(transitionGroup);
+    std::cerr << all << std::endl;*/
+
+    /*break;
     // Find all transitions that have condition, but no input
     if (auto r = event_false; r.Some()) {
       // set timer for smallest delay transition
@@ -420,7 +483,7 @@ int Interpret::Execute() {
         });
         WaitShortestTimer(inputs);
       }
-    }
+    }*/
   }
   return 0;
 }
