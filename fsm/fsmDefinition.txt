@@ -1,17 +1,18 @@
 name TOF5s
 # Timer to off.
-Input:
-    in1
-Output:
-    out1
+Input: in1, in2
+Output: out1
+
 Variables:
     int timeout = 5000
-States:
-state IDLE [ return out1 ]
-state ACTIVE [ return out1 ]
-state TIMING [ return out1 ]
+# States:
+state IDLE [
+    output("out1", 0)
+    ]
+state ACTIVE [ output("out1", 1) ]
+state TIMING [ ]
 Transitions:
-    IDLE --> ACTIVE: in1 [ tonumber(in1) == 1 ]
-    ACTIVE --> TIMING: in1 [ tonumber(in1) == 0 ]
-    TIMING --> ACTIVE : in1 [ tonumber(in1) == 1 ]
+    IDLE --> ACTIVE: in1 [ tonumber(valueof("in1")) == 1 ]
+    ACTIVE --> TIMING: in1 [ tonumber(valueof("in1")) == 0 ]
+    TIMING --> ACTIVE : in1 [ tonumber(valueof("in1")) == 1 ]
     TIMING --> IDLE : @ timeout

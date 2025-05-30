@@ -45,6 +45,11 @@ public:
     _end = ClockT::now();
   }
 
+  template <class T = DT>
+  auto elapsed() const {
+    return std::chrono::duration_cast<T>(ClockT::now() - _start);
+  }
+
   /**
    * @brief Vrátí uplynulý čas mezi tick() a tock().
    * @tparam T Volitelný re-typ pracovního intervalu (jiný než DT).

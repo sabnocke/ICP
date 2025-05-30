@@ -11,9 +11,11 @@
  */
 #pragma once
 
-#include "AutomatLib.h"
-#include "types/all_types.h"
+#include <thread>
 
+#include "AutomatLib.h"
+#include "Stopwatch.h"
+#include "types/all_types.h"
 
 namespace Interpreter {
 using namespace types;
@@ -23,31 +25,55 @@ using namespace types;
  * @brief Spouští a interpretuje běh konečného automatu.
  */
 class Interpret {
-private:
+  /// @brief Lua state for executing state actions and interpreting transition conditions
+  ///
+  /// @attention Important Sol2 lifetime management \n \n
+  /// 'sol::state lua' MUST be declared BEFORE all members that store (and thus is destroyed after all members that store ...)
+  /// 'sol::function' or 'sol::protected_function' objects (e.g., stateGroupFunction, transitionGroupFunction). \n \n
+  /// RATIONALE: C++ destructs member variables in the REVERSE order of their declaration.
+  /// 'lua' owns the underlying Lua state (lua_State*). If 'lua' is destroyed
+  /// BEFORE any 'sol::function'/'sol::protected_function' objects that reference it,
+  /// those objects will try to access a destroyed Lua state during their destruction,
+  /// leading to a use-after-free crash (0xC0000005).
+  sol::state lua{};
+
   /// Generovaný automat, který se bude interpretovat
   AutomatLib::Automat _automat;
-
-  /// Aktuální název stavu
-  std::string activeState;
+  bool running = true;
 
   /// Kolekce všech stavů automatu
-  StateGroup stateGroup;
+  StateGroup<> stateGroup{};
+  StateGroup<sol::protected_function> stateGroupFunction{};
+
+  /// Aktuální název stavu
+  std::string activeState = stateGroup.First().Name;
 
   /// Kolekce všech proměnných automatu
-  VariableGroup variableGroup;
+  VariableGroup variableGroup = _automat.variables;
 
   /// Seznam registrovaných vstupních signálů
-  std::vector<std::string> inputs;
+  std::vector<std::string> inputs = _automat.inputs;
+  [[deprecated]] absl::node_hash_map<std::string, std::string> inputsValues;
 
   /// Seznam registrovaných výstupních signálů
-  std::vector<std::string> outputs;
+  std::vector<std::string> outputs = _automat.outputs;
+  [[deprecated]] absl::node_hash_map<std::string, std::string> outputsValues;
+
   void ChangeState(const TransitionGroup& tg);
+  /*void ChangeState(TransitionsReference<sol::protected_function>& tr);*/
+
   void LinkDelays();
+
+  using InterpretedValue =
+      std::variant<std::monostate, bool, int, double, std::string>;
+
+  static InterpretedValue InterpretResult(const sol::object& result);
 
   /**
    * @brief Připraví proměnné v rámci Lua prostředí automatu.
    */
   void PrepareVariables();
+  void PrepareStates();
 
   /**
    * @brief Načte a připraví přechodová pravidla z modelu automatu.
@@ -59,9 +85,29 @@ private:
    */
   void PrepareSignals();
 
-public:
+  std::optional<sol::protected_function> TestAndSet(const std::string& _cond);
+
+  static bool ExtractBool(const sol::protected_function_result& result);
+
+  Timer<> timer{};
+
+  bool WaitShortestTimer(const TransitionGroup& group) {
+    if (const auto shortest = group.SmallestTimer(); shortest.has_value()) {
+      const auto duration =
+          std::chrono::milliseconds(shortest.value().delayInt);
+      std::this_thread::sleep_for(duration);
+
+      ChangeState(group);
+      return true;
+    }
+    return false;
+  }
+
+  static TransitionGroup WhenConditionTrue(const TransitionGroup& group);
+
+ public:
   /// Skupina přechodů vybraná k aktuálnímu zpracování
-  TransitionGroup transitionGroup;
+  mutable TransitionGroup transitionGroup{};
 
   /**
    * @brief Provede kompletní přípravu interpretu voláním přípravných metod.
@@ -70,24 +116,24 @@ public:
 
   /**
    * @brief Konstruktor přijímající existující model automatu.
-   * @param automat Reference na instanci třídy Automat.
+   * @param automat R-hodnota instance třídy Automat.
    */
-  explicit Interpret(AutomatLib::Automat &automat);
+  explicit Interpret(AutomatLib::Automat&& automat);
+  explicit Interpret(const AutomatLib::Automat& automat);
 
   /**
    * @brief Statická ukázková metoda demonstrující jednoduché použití interpretu.
    */
   static void simpleExample();
 
-  /// Interní Lua stav pro vykonání akcí automatu
-  sol::state lua{};
-
+  std::string ExtractInput(const std::string& line);
+  bool ExtractCommand(const std::string& line);
+  std::pair<int, std::string> ParseStdinInput(const std::string& line);
   /**
    * @brief Spustí vykonání automatu.
-   * @param once Pokud true, provede pouze jeden krok a vrátí výsledek.
    * @return Výstupní kód nebo hodnota výsledku provedení.
    */
-  int Execute(bool once);
+  int Execute();
 };
 
 }  // namespace Interpreter

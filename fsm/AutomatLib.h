@@ -12,105 +12,71 @@
 
 #pragma once
 
-#include <absl/strings/str_join.h>
-#include <functional>
-#include <iomanip>
-#include <sstream>
 #include <string>
 
-#include "ParserLib.h"
-#include "Utils.h"
-#include <range/v3/view.hpp>
-#include "types/all_types.h"
 #include "external/sol.hpp"
-
-namespace ParserLib {
-  struct TransitionRecord;  /**< Forward-declaration záznamu přechodu. */
-  struct VariableRecord;    /**< Forward-declaration záznamu proměnné. */
-}  // namespace ParserLib
+#include "types/all_types.h"
 
 namespace AutomatLib {
-  using namespace types;
+using namespace types;
 
-  /**
+/**
    * @class Automat
    * @brief Reprezentuje konečný automat s jeho daty a generovanou implementací.
    */
-  class Automat {
-  public:
-    /**
+class Automat {
+ public:
+  /**
      * @brief Přidá nový stav podle jména a akce.
      * @param result dvojice (název stavu, text akce)
      */
-    void addState(const std::tuple<std::string, std::string> &result) {
-      states << State{std::get<0>(result), std::get<1>(result)};
-    }
+  void addState(const State<> &result) { states << result; }
 
-    /**
+  /**
      * @brief Přidá nový přechod.
      * @param result Záznam Transition.
      */
-    void addTransition(const Transition &result);
+  void addTransition(Transition&& result) { transitions.Add(std::move(result)); }
 
-    /**
+  /**
      * @brief Přidá novou proměnnou.
      * @param result Záznam Variable.
      */
-    void addVariable(const Variable &result) {
-      variables << result;
-    }
+  void addVariable(const Variable &result) { variables << result; }
 
-    /**
+  /**
      * @brief Registruje vstupní signál.
      * @param name Název vstupu.
      */
-    void addInput(const std::string &name);
+  void addInput(const std::string &name) { inputs.emplace_back(name); }
 
-    /**
+  /**
      * @brief Registruje výstupní signál.
      * @param name Název výstupu.
      */
-    void addOutput(const std::string &name);
+  void addOutput(const std::string &name) { outputs.emplace_back(name); }
 
-    /// Název automatu
-    std::string Name;
+  /// Název automatu
+  std::string Name;
 
-    /// Komentář automatu (z textu)
-    std::string Comment;
+  /// Kontejner stavů
+  StateGroup<> states;
 
-    /** @name Metody pro generování kódu */
-    ///@{
-    void PrepareHelperVariables();
-    void PrepareStateActions() const;
-    void PrepareVariables();
-    void PrepareTransitions();
-    void PrepareExecuteFunction();
-    void PrepareUtilsFunctions();
-    void PrepareSignals();
-    void LinkDelays();
-    void Create();
-    ///@}
+  /// Kontejner přechodů
+  TransitionGroup transitions;
 
-    /// Kontejner stavů
-    StateGroup states;
+  /// Seznam vstupů
+  std::vector<std::string> inputs;
 
-    /// Kontejner přechodů
-    TransitionGroup transitions;
+  /// Seznam výstupů
+  std::vector<std::string> outputs;
 
-    /// Seznam vstupů
-    std::vector<std::string> inputs;
+  /// Kontejner proměnných
+  VariableGroup variables;
 
-    /// Seznam výstupů
-    std::vector<std::string> outputs;
+  /// Název aktuálního stavu v době běhu
+  std::string currentState;
 
-    /// Kontejner proměnných
-    VariableGroup variables;
-
-    /// Název aktuálního stavu v době běhu
-    std::string currentState;
-
-    /// Integrovaný Lua interpreter (sol2)
-    sol::state lua{};
-  };
+};
 
 }  // namespace AutomatLib
