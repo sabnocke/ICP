@@ -71,7 +71,7 @@ class Parser {
      * @brief Zparsuje signál (vstup nebo výstup).
      */
   template <bool InputSignal>
-  [[nodiscard]] std::optional<std::vector<std::string>> parseSignal(const std::string &line) const {
+  [[nodiscard]] std::vector<std::string> parseSignal(const std::string &line) const {
     auto terminate = [n = lineNumber, l = line]() {
       LOG(ERROR) << absl::StrFormat("[%lu] Malformed signal definition: %s", n,
                                     l);
@@ -81,13 +81,15 @@ class Parser {
     if constexpr (InputSignal) {
       if (result = Utils::RemovePrefix<false>(line, "input:", true);
           result.empty()) {
-        terminate();
+        //terminate();
+        return std::vector<std::string>();
         //TODO don't terminate and instead read following lines if they contain the inputs
       }
     } else {
       if (result = Utils::RemovePrefix<false>(line, "output:", true);
           result.empty()) {
-        terminate();
+        // terminate();
+        return std::vector<std::string>();
       }
     }
 
