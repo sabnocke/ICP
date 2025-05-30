@@ -71,7 +71,7 @@ class Parser {
      * @brief Zparsuje signál (vstup nebo výstup).
      */
   template <bool InputSignal>
-  [[nodiscard]] std::vector<std::string> parseSignal(const std::string &line) const {
+  [[nodiscard]] std::optional<std::vector<std::string>> parseSignal(const std::string &line) const {
     auto terminate = [n = lineNumber, l = line]() {
       LOG(ERROR) << absl::StrFormat("[%lu] Malformed signal definition: %s", n,
                                     l);
@@ -82,6 +82,7 @@ class Parser {
       if (result = Utils::RemovePrefix<false>(line, "input:", true);
           result.empty()) {
         terminate();
+        //TODO don't terminate and instead read following lines if they contain the inputs
       }
     } else {
       if (result = Utils::RemovePrefix<false>(line, "output:", true);
@@ -90,6 +91,33 @@ class Parser {
       }
     }
 
+    auto result2 = Utils::Split(result, ',');
+    if (result2.empty()) {
+      terminate();
+    }
+
+    return Utils::TrimEach(result2);
+  }
+  template<bool InputSignal>
+  [[nodiscard]] auto parseSignalMultiLine(const std::string &line) const {
+    auto terminate = [n = lineNumber, l = line]() {
+      LOG(ERROR) << absl::StrFormat("[%lu] Malformed signal definition: %s", n,
+                                    l);
+      throw Utils::ProgramTermination();
+    };
+    std::string result = "";
+    if constexpr (InputSignal) {
+      if (result = Utils::RemovePrefix<false>(line, "input:", true);
+          result.empty()) {
+        terminate();
+        //TODO don't terminate and instead read following lines if they contain the inputs
+          }
+    } else {
+      if (result = Utils::RemovePrefix<false>(line, "output:", true);
+          result.empty()) {
+        terminate();
+          }
+    }
 
     auto result2 = Utils::Split(result, ',');
     if (result2.empty()) {
@@ -108,6 +136,7 @@ class Parser {
 
   Section ActualSection = Name; /**< Aktuální zpracovávaná sekce */
   size_t lineNumber = 0;
+  mutable bool SignalsSplitDefinition = false;
   mutable bool collecting = false;
   mutable std::stringstream collector;
   mutable size_t bracketCounter = 0;

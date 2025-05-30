@@ -55,6 +55,11 @@ AutomatLib::Automat Parser::parseAutomat(const std::string &file) {
       SectionHandler(line, automat);
       continue;
     }
+    if (Utils::Contains(line, "comment")) {
+      ActualSection = Comment;
+      SectionHandler(line, automat);
+      continue;
+    }
     if (Utils::Contains(line, '#')) {
       // Comments are ignored
       continue;
@@ -65,7 +70,6 @@ AutomatLib::Automat Parser::parseAutomat(const std::string &file) {
     }
     if (collecting || Utils::Contains(line, "State")) {
       ActualSection = States;
-      // std::cerr << "Parsing states" << std::endl;
       SectionHandler(line, automat);
       continue;
     }
@@ -98,8 +102,15 @@ bool Parser::SectionHandler(const std::string &line,
     case Name:
       automat.Name = extractName(line);
       return true;
-    case Comment:
+    case Comment: {
+      auto comment = Utils::RemovePrefix<false>(line, "comment:");
+      auto trimmed = Utils::Trim(comment);
+      if (trimmed.empty())
+        return true;
+      automat.Comment = trimmed;
+      std::cerr << "Comment: " << automat.Comment << std::endl;
       return true;
+    }
     case States: {
       if (const auto val = parseState(line); val.has_value()) {
         automat.addState(val.value());
@@ -115,13 +126,15 @@ bool Parser::SectionHandler(const std::string &line,
     case Variables:
       automat.addVariable(parseVariable(line));
       return true;
-    case Inputs:
+    case Inputs: {
       for (const auto &name : parseSignal<true>(line)) {
         // std::cerr << name << std::endl;
         automat.addInput(name);
       }
       // automat.addInput(parseSignal(line));
       return true;
+    }
+
     case Outputs:
       for (const auto &name : parseSignal<false>(line)) {
         // std::cerr << name << std::endl;
@@ -206,7 +219,6 @@ Transition Parser::parseTransition(const std::string &line) const {
     const auto cond2 = Utils::Remove(cond, '[');
     const auto cond3 = Utils::Remove(cond2, ']');
     auto t = Transition{from, to, input, std::move(Utils::Trim(cond3)), delay};
-    /*std::cerr << "parseTransition returns: " << t << std::endl;*/
     return t;
   }
 

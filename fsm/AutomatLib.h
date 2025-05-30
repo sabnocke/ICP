@@ -59,6 +59,8 @@ class Automat {
   /// Název automatu
   std::string Name;
 
+  std::string Comment;
+
   /// Kontejner stavů
   StateGroup<> states;
 
