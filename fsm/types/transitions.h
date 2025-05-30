@@ -277,6 +277,16 @@ class TransitionGroup {
     return Where<Split>([](const auto& tr) { return !tr.delay.empty(); });
   }
 
+  template <
+      bool Split = false,
+      typename ResultType = std::conditional_t<
+          Split, std::pair<TransitionGroup, TransitionGroup>, TransitionGroup>>
+  ResultType WhereCondition() const {
+    return Where<Split>([](const auto& tr) {
+      return !tr.condition.empty() && tr.hasCondition;
+    });
+  }
+
   [[nodiscard]] TransitionGroup WhereNone() const {
     return Where<>([](const auto& tr) {
       return tr.hasCondition && tr.delay.empty() && tr.input.empty();
@@ -307,18 +317,10 @@ class TransitionGroup {
     return ranges::begin(primary | ranges::views::values);
   }
 
-  [[nodiscard]] auto begin() {
-    return primary.begin();
-  }
-  [[nodiscard]] auto cbegin() const {
-    return primary.cbegin();
-  }
-  [[nodiscard]] auto end() {
-    return primary.end();
-  }
-  [[nodiscard]] auto cend() const {
-    return primary.cend();
-  }
+  [[nodiscard]] auto begin() { return primary.begin(); }
+  [[nodiscard]] auto cbegin() const { return primary.cbegin(); }
+  [[nodiscard]] auto end() { return primary.end(); }
+  [[nodiscard]] auto cend() const { return primary.cend(); }
 
   [[nodiscard]] auto empty() const { return primary.empty(); }
 
@@ -355,8 +357,7 @@ class TransitionGroup {
     final.primary = primary;
 
     for (auto [id, tr] : other.primary) {
-      if (auto seek = primary.find(id);
-        seek != primary.end()) {
+      if (auto seek = primary.find(id); seek != primary.end()) {
         final << tr;
       }
     }
@@ -367,7 +368,10 @@ class TransitionGroup {
   friend std::ostream& operator<<(std::ostream& os,
                                   const TransitionGroup& group) {
     for (const auto& [id, tr] : group.primary) {
-      os << tr << std::endl;
+      /*if (tr == group.primary.cend()->second)
+        os << tr;
+      else*/
+        os << tr << std::endl;
     }
     return os;
   }
