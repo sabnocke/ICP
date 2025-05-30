@@ -77,11 +77,6 @@ class Transition {
         hasCondition(other.hasCondition),
         delay(std::move(other.delay)),
         delayInt(other.delayInt) {
-    if (other.function.valid()) {
-      function = std::move(other.function);
-    } else {
-      function = sol::protected_function{};
-    }
     hasCondition = function.valid();
     Id = other.Id;
   }
@@ -101,7 +96,7 @@ class Transition {
       delay = std::move(other.delay);
       delayInt = other.delayInt;
       Id = other.Id;
-      hasCondition = other.hasCondition;
+      hasCondition = function.valid();
     }
     return *this;
   }
@@ -176,6 +171,8 @@ class TransitionGroup {
    * Any change to this also requires a change in Retrieve()
    */
   absl::flat_hash_map<std::string, TransitionGroup> index_by_from{};
+
+  /*absl::flat_hash_set<std::reference_wrapper<Transition>> index{};*/
 
   TransitionGroup() = default;
   explicit TransitionGroup(TransitionGroupType&& tgt) {

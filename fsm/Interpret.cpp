@@ -119,7 +119,9 @@ void Interpret::ChangeState(const TransitionGroup& tg) {
     }
   } else {
     const sol::error err = result;
-    LOG(ERROR) << absl::StrFormat("Action execution error: %v", err.what());
+    auto var = lua["count"];
+    std::cerr << "type: " << sol::type_name(lua, var.get_type()) << std::endl;
+    LOG(ERROR) << err.what();
     throw Utils::ProgramTermination();
   }
 }
@@ -160,8 +162,11 @@ void Interpret::PrepareVariables() {
     std::cerr << "Variable: " << Type << " " << Name << std::endl;
 
     if (absl::EqualsIgnoreCase(Type, "int")) {
-      if (auto val = TestAndSetValue<int>(Value); val.has_value())
+      if (auto val = TestAndSetValue<int>(Value); val.has_value()) {
+        std::cerr << Name << ": " << val.value() << std::endl;
         lua[Name] = val.value();
+      }
+
     } else if (absl::EqualsIgnoreCase(Type, "float")) {
       if (auto val = TestAndSetValue<float>(Value); val.has_value())
         lua[Name] = val.value();
@@ -419,11 +424,14 @@ int Interpret::Execute() {
     TransitionGroup event_false;
     TransitionGroup timer_true;
     TransitionGroup timer_false;
-    for (auto item : transitions_v) {
+
+    for (const auto& item : transitions_v) {
       if (!item.second.input.empty())
         event_true << item.second;
-      else
+      else {
         event_false << item.second;
+        event_false << item.second;
+      }
       if (item.second.delayInt == 0)
         timer_false << item.second;
       else
@@ -437,8 +445,8 @@ int Interpret::Execute() {
     /*auto [event_true, event_false] = transitions_v.WhereEvent<true>();*/
     /*auto timer_true = transitions_v.WhereTimer<false>();
     auto timer_false = transitions_v.Where<>([](const auto& tr) { return tr.delay.empty(); });*/
-    std::cerr << event_true << std::endl;
-    std::cerr << event_false << std::endl;
+    std::cerr << "event_true:" << std::endl << event_true << std::endl;
+    std::cerr << "event_false:" << std::endl << event_false << std::endl;
     if (auto zero = timer_false & event_false; zero.Some()) {
       ChangeState(zero);
       continue;
