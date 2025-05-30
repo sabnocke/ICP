@@ -31,9 +31,8 @@ set(PROJECT_SOURCES
         ${CMAKE_SOURCE_DIR}/fsm/ParserLib.h
         ${CMAKE_SOURCE_DIR}/fsm/Utils.cpp
         ${CMAKE_SOURCE_DIR}/fsm/Utils.h
-        ${CMAKE_SOURCE_DIR}/fsm/AutomatLib.cpp
         ${CMAKE_SOURCE_DIR}/fsm/AutomatLib.h
-        ${CMAKE_SOURCE_DIR}/fsm/types/variables.cpp
+        ${CMAKE_SOURCE_DIR}/fsm/types/variables.h
 )
 
 set(CMAKE_INCLUDE_CURRENT_DIR ON)
