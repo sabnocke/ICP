@@ -10,7 +10,7 @@ Variables:
 States:
     state IDLE {
         action {
-            output("status", "IDLE: čekám na commit");
+            output("status", "IDLE: cekam na commit");
         }
     }
     state FETCH {

@@ -307,9 +307,11 @@ void MainWindow::onImportClicked() {
 
   // Variables
   ui->automatVariables->clear();
-  for (const auto& varLine : parsed.variables.Format()) {
-    ui->automatVariables->addItem(QString::fromStdString(varLine));
-  }
+for (const auto& var : parsed.variables) {
+    std::string line = var.Type + " " + var.Name + " = " + var.Value;
+    ui->automatVariables->addItem(QString::fromStdString(line));
+}
+
 
   // Inputs
   ui->automatInputs->clear();
@@ -336,7 +338,7 @@ void MainWindow::onImportClicked() {
   }
 
   // Transitions
-  for (const auto& t : parsed.transitions) {
+  for (const auto& [id, t] : parsed.transitions) {
     auto from = stateItems[t.from];
     auto to   = stateItems[t.to];
     if (from && to) {
