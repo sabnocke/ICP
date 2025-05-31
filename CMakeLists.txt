@@ -4,7 +4,6 @@ file(COPY ${CMAKE_SOURCE_DIR}/stdlib.lua DESTINATION ${CMAKE_BINARY_DIR})
 cmake_minimum_required(VERSION 3.11)
 project(fsm VERSION 0.1 LANGUAGES CXX)
 
-
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
 set(CMAKE_CXX_STANDARD 17)
 set(CMAKE_CXX_EXTENSIONS OFF)
@@ -46,5 +45,10 @@ target_link_libraries(fsm PRIVATE
         absl::log_flags
         absl::flags
 )
+
+target_compile_options(fsm PRIVATE -fsanitize=address)
+target_link_directories(fsm PRIVATE "C:/Program Files/Microsoft Visual Studio/2022/Community/VC/Tools/Llvm/x64/lib/clang/19/lib/windows")
+target_link_libraries(fsm PRIVATE clang_rt.asan_dynamic-x86_64 clang_rt.asan_dynamic_runtime_thunk-x86_64)
+target_link_options(fsm PRIVATE /wholearchive:clang_rt.asan_dynamic_runtime_thunk-x86_64.lib)
 
 # add_subdirectory(src/icp-qt) # uncomment this for the project to work
