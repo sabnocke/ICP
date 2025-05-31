@@ -307,10 +307,10 @@ void MainWindow::onImportClicked() {
 
   // Variables
   ui->automatVariables->clear();
-for (const auto& var : parsed.variables) {
-    std::string line = var.Type + " " + var.Name + " = " + var.Value;
-    ui->automatVariables->addItem(QString::fromStdString(line));
-}
+  for (const auto& var : parsed.variables) {
+      std::string line = var.Type + " " + var.Name + " = " + var.Value;
+      ui->automatVariables->addItem(QString::fromStdString(line));
+  }
 
 
   // Inputs
@@ -343,7 +343,11 @@ for (const auto& var : parsed.variables) {
     auto to   = stateItems[t.to];
     if (from && to) {
       auto* tr = scene->createTransitionByNames(from, to);
-      tr->setLabel(QString::fromStdString(t.input));
+      std::string fullLabel = t.input;
+      if (!t.condition.empty()) {
+        fullLabel += " [" + t.condition + "]";
+      }
+      tr->setLabel(QString::fromStdString(fullLabel));
     }
   }
 
