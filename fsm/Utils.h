@@ -27,6 +27,13 @@ namespace Utils {
 
 namespace detail {
 
+template <typename... Ts>
+struct Overloaded : Ts... {
+  using Ts::operator()...;
+};
+
+template <typename... Ts> Overloaded(Ts...) -> Overloaded<Ts...>;
+
 template <typename T>
 inline constexpr bool IsNumeric =
     std::disjunction_v<std::is_integral<T>, std::is_floating_point<T>>;

@@ -108,21 +108,6 @@ void Interpret::ChangeState(const TransitionGroup& tg) {
   if (const auto result = Action(); result.valid()) {
     const auto r = sol::object(result[0]);
     const auto i_result = InterpretResult(r);
-    /*if (const auto i_result = InterpretResult(r); i_result.index() == 4) {
-      std::cout << "OUTPUT: " << std::get<4>(i_result) << std::endl;
-    } else if (i_result.index() == 1) {
-      std::cout << "OUTPUT: " << std::get<1>(i_result) << std::endl;
-    } else if (i_result.index() == 2) {
-      std::cout << "OUTPUT: " << std::get<2>(i_result) << std::endl;
-    }
-    else if (i_result.index() == 3) {
-      std::cout << "OUTPUT: " << std::get<3>(i_result) << std::endl;
-    }
-    else {
-      LOG(ERROR) << "Invalid (or unexpected) result type index: "
-                 << i_result.index() << std::endl;
-      throw Utils::ProgramTermination();
-    }*/
     std::visit(
         Utils::detail::Overloaded{
             [](const std::string& val) {
@@ -142,8 +127,6 @@ void Interpret::ChangeState(const TransitionGroup& tg) {
         i_result);
   } else {
     const sol::error err = result;
-    /*auto var = lua["count"];
-    std::cerr << "type: " << sol::type_name(lua, var.get_type()) << std::endl;*/
     LOG(ERROR) << err.what();
     throw Utils::ProgramTermination();
   }

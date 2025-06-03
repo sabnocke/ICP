@@ -48,7 +48,8 @@ class Parser {
      * @param line Text řádku.
      * @return pair{název, kód akce} nebo nullopt.
      */
-  [[nodiscard]] std::optional<State<>> parseState(const std::string &line) const;
+  [[nodiscard]] std::optional<State<>> parseState(
+      const std::string &line) const;
 
   /**
      * @brief Zkusí rozparsovat proměnnou.
@@ -71,19 +72,18 @@ class Parser {
      * @brief Zparsuje signál (vstup nebo výstup).
      */
   template <bool InputSignal>
-  [[nodiscard]] std::vector<std::string> parseSignal(const std::string &line) const {
+  [[nodiscard]] std::vector<std::string> parseSignal(
+      const std::string &line) const {
     auto terminate = [n = lineNumber, l = line]() {
       LOG(ERROR) << absl::StrFormat("[%lu] Malformed signal definition: %s", n,
                                     l);
       throw Utils::ProgramTermination();
     };
-    std::string result = "";
+    std::string result;
     if constexpr (InputSignal) {
       if (result = Utils::RemovePrefix<false>(line, "input:", true);
           result.empty()) {
-        //terminate();
         return std::vector<std::string>();
-        //TODO don't terminate and instead read following lines if they contain the inputs
       }
     } else {
       if (result = Utils::RemovePrefix<false>(line, "output:", true);
@@ -100,25 +100,24 @@ class Parser {
 
     return Utils::TrimEach(result2);
   }
-  template<bool InputSignal>
+  template <bool InputSignal>
   [[nodiscard]] auto parseSignalMultiLine(const std::string &line) const {
     auto terminate = [n = lineNumber, l = line]() {
       LOG(ERROR) << absl::StrFormat("[%lu] Malformed signal definition: %s", n,
                                     l);
       throw Utils::ProgramTermination();
     };
-    std::string result = "";
+    std::string result;
     if constexpr (InputSignal) {
       if (result = Utils::RemovePrefix<false>(line, "input:", true);
           result.empty()) {
         terminate();
-        //TODO don't terminate and instead read following lines if they contain the inputs
-          }
+      }
     } else {
       if (result = Utils::RemovePrefix<false>(line, "output:", true);
           result.empty()) {
         terminate();
-          }
+      }
     }
 
     auto result2 = Utils::Split(result, ',');

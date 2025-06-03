@@ -17,7 +17,7 @@ Parser::Parser() {
   options.set_case_sensitive(false);
   name_pattern_ =
       std::make_unique<RE2>(R"(^\s*Name\s*:?\s*(?<c>.*)$)", options);
-  comment_pattern_ = std::make_unique<RE2>(R"(^.*?:\s*?(?<c>.*)$)", options);
+  comment_pattern_ = std::make_unique<RE2>(R"(^.*?:?\s*?(?<c>.*)$)", options);
   variables_pattern_ = std::make_unique<RE2>(
       R"(\s*(?<type>\w+)\s*(?<name>\w+)\s*=\s*(?<value>\w+)\s*)", options);
   states_pattern_ =
@@ -25,8 +25,6 @@ Parser::Parser() {
   transitions_pattern_ = std::make_unique<RE2>(
       R"(^\s*(?<from>\w+)\s*-->\s*(?<to>\w+)\s*:\s*(?:(?<input>\w*)?\s*(?<cond>\[.*\])?\s*@?\s*(\w*)?)\s*$)",
       options);
-  input_pattern_ = std::make_unique<RE2>(R"(^.*?:?\s*(?<name>\w*)$)", options);
-  output_pattern_ = std::make_unique<RE2>(R"(^.*?:?\s*(?<name>\w*)$)", options);
 
   if (!name_pattern_->ok() || !comment_pattern_->ok() ||
       !variables_pattern_->ok() || !states_pattern_->ok() ||
@@ -46,9 +44,6 @@ AutomatLib::Automat Parser::parseAutomat(const std::string &file) {
   std::string line;
 
   while (std::getline(ifs, line)) {
-    if (Utils::Contains(line, '#')) {
-      line = Utils::Split(line, '#')[0];
-    }
     lineNumber++;
     if (line.empty())
       continue;
@@ -58,35 +53,41 @@ AutomatLib::Automat Parser::parseAutomat(const std::string &file) {
       SectionHandler(line, automat);
       continue;
     }
+
     if (Utils::Contains(line, "comment")) {
       ActualSection = Comment;
       SectionHandler(line, automat);
       continue;
     }
-    if (Utils::Contains(line, '#')) {
-      // Comments are ignored
-      continue;
-    }
+
     if (Utils::Contains(line, "Variables")) {
       ActualSection = Variables;
       continue;
     }
+
+    if (absl::EqualsIgnoreCase(line, "States:")) {
+      ActualSection = States;
+      continue;
+    }
+
     if (collecting || Utils::Contains(line, "State")) {
-      if (absl::EqualsIgnoreCase(line, "states:"))
-         continue;
+
       ActualSection = States;
       SectionHandler(line, automat);
       continue;
     }
+
     if (Utils::Contains(line, "Transition")) {
       ActualSection = Transitions;
       continue;
     }
+
     if (Utils::Contains(line, "Input")) {
       ActualSection = Inputs;
       SectionHandler(line, automat);
       continue;
     }
+
     if (Utils::Contains(line, "Output")) {
       ActualSection = Outputs;
       SectionHandler(line, automat);
@@ -94,10 +95,12 @@ AutomatLib::Automat Parser::parseAutomat(const std::string &file) {
     }
     SectionHandler(line, automat);
   }
+
   if (collecting) {
     LOG(ERROR) << "Automat is still collecting split definition of state";
     throw Utils::ProgramTermination();
   }
+
   return std::move(automat);
 }
 
@@ -108,8 +111,8 @@ bool Parser::SectionHandler(const std::string &line,
       automat.Name = extractName(line);
       return true;
     case Comment: {
-      auto comment = Utils::RemovePrefix<false>(line, "comment:");
-      auto trimmed = Utils::Trim(comment);
+      const auto comment = Utils::RemovePrefix<false>(line, "comment:");
+      const auto trimmed = Utils::Trim(comment);
       if (trimmed.empty())
         return true;
       automat.Comment = trimmed;
@@ -120,12 +123,10 @@ bool Parser::SectionHandler(const std::string &line,
       if (const auto val = parseState(line); val.has_value()) {
         automat.addState(val.value());
       }
-      // automat.addState(parseState(line));
       return true;
     }
     case Transitions: {
       automat.addTransition(parseTransition(line));
-      /*std::cerr << "Current transitions: " << std::endl << automat.transitions << std::endl;*/
       return true;
     }
     case Variables:
@@ -133,19 +134,15 @@ bool Parser::SectionHandler(const std::string &line,
       return true;
     case Inputs: {
       for (const auto &name : parseSignal<true>(line)) {
-        // std::cerr << name << std::endl;
         automat.addInput(name);
       }
-      // automat.addInput(parseSignal(line));
       return true;
     }
 
     case Outputs:
       for (const auto &name : parseSignal<false>(line)) {
-        // std::cerr << name << std::endl;
         automat.addOutput(name);
       }
-      // automat.addOutput(parseSignal(line));
       return true;
   }
 
@@ -161,20 +158,17 @@ std::optional<State<>> Parser::parseState(const std::string &line) const {
   const auto r1 = std::count(line.begin(), line.end(), '[');
   const auto r2 = std::count(line.begin(), line.end(), ']');
   bracketCounter += r1 - r2;
-  /*std::cerr << "bracketCounter " << bracketCounter << std::endl;
-  std::cerr << "line: " << line << std::endl;*/
+
   if (collecting && bracketCounter != 0) {
-    /*std::cerr << "Split definition is still present" << std::endl;*/
     collector << line;
     return std::nullopt;
   }
   if (bracketCounter != 0) {
-    /*std::cerr << "Detected split definition" << std::endl;*/
     collecting = true;
     collector << line;
     return std::nullopt;
   }
-  if (collecting /*&& bracketCounter == 0*/) {
+  if (collecting) {
     collector << line;
     trimmed = Utils::Trim(collector.str());
 
@@ -210,7 +204,6 @@ Variable Parser::parseVariable(const std::string &line) const {
   std::string type, name, value;
 
   if (RE2::FullMatch(trimmed, *variables_pattern_, &type, &name, &value)) {
-    /*std::cerr << "parseVariable returns " << type << ": " << name << " = " << value << std::endl;*/
     return Variable{std::move(type), std::move(name), std::move(value)};
   }
 
@@ -225,6 +218,7 @@ Transition Parser::parseTransition(const std::string &line) const {
                      &delay)) {
     const auto cond2 = Utils::Remove(cond, '[');
     const auto cond3 = Utils::Remove(cond2, ']');
+    //TODO maybe move it too
     auto t = Transition{from, to, input, std::move(Utils::Trim(cond3)), delay};
     return t;
   }

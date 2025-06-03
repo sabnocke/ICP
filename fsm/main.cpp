@@ -1,6 +1,5 @@
 #include <absl/flags/flag.h>
 #include <absl/log/absl_log.h>
-#include <absl/log/globals.h>
 #include <absl/log/initialize.h>
 #include <absl/strings/str_format.h>
 
@@ -12,13 +11,8 @@
 #include "ParserLib.h"
 #include "external/sol.hpp"
 
-#define ABSL_MIN_LOG_LEVEL absl::LogSeverity::kInfo
-
 void parserTest() {
   ParserLib::Parser parser;
-
-  /*auto [name, cond] = parser.parseState("state IDLE [ output(\"out\", 0) ]");
-  std::cout << absl::StrFormat("state %s has action %s\n", name, cond);*/
 
   std::cout << parser.parseVariable("    int timeout = 5000") << std::endl;
 
@@ -50,12 +44,10 @@ int main(const int argc, char** argv) {
   }
 
   absl::InitializeLog();
-  // absl::SetMinLogLevel(absl::LogSeverityAtLeast::kInfo); //<-- this doesn't do anything of use
-  LOG(INFO) << "Initialized logging";
+
   try {
     Timer<> timer;
     timer.tick();
-    // parserTest();
     auto parser = ParserLib::Parser();
     const auto automat = parser.parseAutomat(argv[1]);
     auto interpret = Interpreter::Interpret(automat);
@@ -67,7 +59,9 @@ int main(const int argc, char** argv) {
     timer.tick();
     interpret.Execute();
     timer.tock();
-    std::cerr << "Execute took " << timer.duration<>().count() << "ms." << std::endl;
+    perror("Error");
+
+    std::cerr << "Execute took " << timer.duration<std::chrono::seconds>().count() << "s." << std::endl;
 
   } catch (const Utils::ProgramTermination&) {
     return 1;
