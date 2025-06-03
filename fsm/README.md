@@ -31,13 +31,18 @@
 ---
 # Syntax
 - Any keyword is case-insensitive
-- Comments start with `#`
-- There are no multi-line comments
+- There are no comments, beside `comment:`
 - No section is required, but for the automat to work correctly, 
  _states_ and _transitions_ are **required** and *signals* with *variables* are **optional**
 
 ## Name
-- `name <name>`
+- `name(:) <name>`
+- The colon is optional
+
+## Comment
+- Ideally should be on single line
+- `comment(:) <comment>`
+- The colon is optional
 
 ## Signals
 - `inputs: <name>, <name1>, ...`
@@ -62,5 +67,5 @@
 - automat doesn't verify reachability of any state
 
 ## Transitions
-- need to start with `Transitions:` line (maybe remove that?)
+- Whole section needs to start with `Transitions:` line (maybe remove that?)
 - `<from> --> <to>: <input>? [<condition>]? @ <delay>?`

@@ -88,23 +88,42 @@ bool AutomatModel::exportInfo(const QString& filename) const {
   out << "Comment: " << comment << "\n\n";
 
   // Inputs
-  for (const auto& input : inputs) {
-    out << "Input: " << input << "\n";
+  if (!inputs.empty()) {
+    out << "Input: ";
+    int count = 0;
+    for (const auto& input : inputs) {
+      if (count != 0){
+        out << ", ";
+      }
+      out << input;
+      count++;
+    }
+    out << "\n";
   }
-  out << "\n";
 
   // Outputs
-  for (const auto& output : outputs) {
-    out << "Output: " << output << "\n";
+  if (!outputs.empty()){
+    out << "Output: ";
+    int count = 0;
+    for (const auto& output : outputs) {
+      if (count != 0){
+        out << ", ";
+      }
+      out << output;
+      count++;
+    }
+    out << "\n";
+    out << "\n";
   }
-  out << "\n";
 
   // Variables
-  out << "Variables:\n";
-  for (const QString& varLine : variableLines) {
-    out << varLine << "\n";
+  if (!variableLines.empty()){
+    out << "Variables:\n";
+    for (const QString& varLine : variableLines) {
+      out << varLine << "\n";
+    }
+    out << "\n";
   }
-  out << "\n";
 
   // States and actions
   out << "States:\n";
@@ -119,9 +138,11 @@ bool AutomatModel::exportInfo(const QString& filename) const {
   out << "\n";
 
   // Transitions
-  out << "Transitions:\n";
-  for (auto& tr : transitions) {
-    out << tr.from << " --> " << tr.to << " : " << tr.label << "\n";
+  if (!transitions.empty()){
+    out << "Transitions:\n";
+    for (auto& tr : transitions) {
+      out << tr.from << " --> " << tr.to << " : " << tr.label << "\n";
+    }
   }
 
   return true;

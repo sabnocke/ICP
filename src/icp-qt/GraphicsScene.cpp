@@ -221,6 +221,18 @@ void GraphicsScene::clearScene() {
 // Adds the transition to both states and updates its position in the scene
 TransitionItem* GraphicsScene::createTransitionByNames(StateItem* from, StateItem* to) {
   auto* transition = new TransitionItem(from, to);
+
+  // Check if a reverse transition exists and curve both
+  for (QGraphicsItem* item : items()) {
+    if (auto* existing = dynamic_cast<TransitionItem*>(item)) {
+      if (existing->getFromState() == to && existing->getToState() == from && from != to) {
+        transition->setCurved(true);
+        existing->setCurved(true);
+        existing->updatePosition();
+      }
+    }
+  }
+
   from->addTransition(transition);
   to->addTransition(transition);
   addItem(transition);  // Add transition line to scene

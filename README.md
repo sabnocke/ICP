@@ -1,6 +1,17 @@
 # ICP
 Repo for ICP project
 
+## State of examples
+
+|Name|Working|Issues
+|--|:--:|--|
+|BuildPipeline| ❌ | Incorrect syntax
+|CoffeeMachine|✅| Stops after `STOPPED`, throws error but expected
+|Hello|**❌**| Incorrect state action
+|Toggle|✅|
+|TrafficLight|**❌**| None of output signals are set at any time
+|WashingMachine|**❌**| `status` signal is never set
+
 ---
 ## 👤 Authors
 
@@ -46,11 +57,10 @@ cd vcpkg
 # Installation is handled by manifest
 ```
 # Dependencies
-This project uses following external libraries:
+This project uses following external libraries (_header-only_ are contained in fsm/external):
  - [abseil](https://abseil.io)
  - [re2](https://github.com/google/re2/tree/main)
- - [fast_float](https://github.com/fastfloat/fast_float) 
+ - [fast_float](https://github.com/fastfloat/fast_float) header-only
  - [range-v3](https://github.com/ericniebler/range-v3)
- - [spdlog](https://github.com/gabime/spdlog)
- - [sol2](https://github.com/ThePhD/sol2)
+ - [sol2](https://github.com/ThePhD/sol2) header-only
  - [lua](https://www.lua.org)
