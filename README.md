@@ -1,6 +1,17 @@
 # ICP
 Repo for ICP project
 
+## State of examples
+
+|Name|Working|Issues
+|--|:--:|--|
+|BuildPipeline| ❌ | Incorrect syntax
+|CoffeeMachine|✅| Stops after `STOPPED`, throws error but expected
+|Hello|**❌**| Incorrect state action
+|Toggle|✅|
+|TrafficLight|**❌**| None of output signals are set at any time
+|WashingMachine|**❌**| `status` signal is never set
+
 ---
 ## 👤 Authors
 
