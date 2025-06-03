@@ -1,16 +1,16 @@
 name CoffeeMachine
-# Simulace automatu kávovaru s mletím, extrakcí, výdejem a čištěním.
+comment: Simulace automatu kávovaru s mletím, extrakcí, výdejem a čištěním.
 Input:
 Output: status
 
 Variables:
-    int tIdle     = 2000   # pauza před prvním cyklem
-    int tGrind    = 3000   # mlýnek
-    int tBrew     = 4000   # extrakce
-    int tDispense = 2000   # výdej kávy
-    int tClean    = 5000   # čištění
-    int cycles    = 3      # kolikrát opakovat přípravu
-    int count     = 0      # aktuální cyklus
+    int tIdle     = 2000
+    int tGrind    = 3000
+    int tBrew     = 4000
+    int tDispense = 2000
+    int tClean    = 5000
+    int cycles    = 1
+    int count     = 0
 States:
     state IDLE     [ return "IDLE: cekam pred cyklem"; ]
     state GRIND    [ return "GRIND: mleti zrn"; ]

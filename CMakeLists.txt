@@ -46,9 +46,4 @@ target_link_libraries(fsm PRIVATE
         absl::flags
 )
 
-target_compile_options(fsm PRIVATE -fsanitize=address)
-target_link_directories(fsm PRIVATE "C:/Program Files/Microsoft Visual Studio/2022/Community/VC/Tools/Llvm/x64/lib/clang/19/lib/windows")
-target_link_libraries(fsm PRIVATE clang_rt.asan_dynamic-x86_64 clang_rt.asan_dynamic_runtime_thunk-x86_64)
-target_link_options(fsm PRIVATE /wholearchive:clang_rt.asan_dynamic_runtime_thunk-x86_64.lib)
-
-# add_subdirectory(src/icp-qt) # uncomment this for the project to work
+# add_subdirectory(src/icp-qt) # uncomment this for the project to work, commented out for debugging of fsm

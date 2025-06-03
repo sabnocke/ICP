@@ -44,21 +44,16 @@ States:
         }
     }
 Transitions:
-    # Start pipeline na commit
     IDLE   --> FETCH    : commit
 
-    # Fetch, build, test, deploy postupně s timeouty
     FETCH  --> BUILD    : @ timeout
     BUILD  --> TEST     : @ timeout
     TEST   --> DEPLOY   : @ timeout
 
-    # Vyhodnocení výsledku testů
-    TEST   --> REPORT   : test_result [ strcmp(valueOf("test_result"), "pass") == 0 ]
-    TEST   --> REPORT   : test_result [ strcmp(valueOf("test_result"), "pass") != 0 ]
+    TEST   --> REPORT   : test_result [ valueOf("test_result") == "pass" ]
+    TEST   --> REPORT   : test_result [ valueOf("test_result") != "pass" ]
 
-    # Deploy a potvrzení nebo timeout
-    DEPLOY --> REPORT   : deploy_approval [ strcmp(valueOf("deploy_approval"), "yes") == 0 ]
+    DEPLOY --> REPORT   : deploy_approval [ valueOf("deploy_approval") == "yes" ]
     DEPLOY --> REPORT   : @ timeout
 
-    # Po reportu vrať zpět do IDLE po 5 s
     REPORT --> IDLE     : @ 5000
