@@ -45,6 +45,9 @@ AutomatLib::Automat Parser::parseAutomat(const std::string &file) {
 
   while (std::getline(ifs, line)) {
     lineNumber++;
+
+    line = Utils::Trim(line);
+
     if (line.empty())
       continue;
 
@@ -105,7 +108,7 @@ AutomatLib::Automat Parser::parseAutomat(const std::string &file) {
 }
 
 void Parser::SectionHandler(const std::string &line,
-                            AutomatLib::Automat &automat) const {
+                            AutomatLib::Automat &automat) {
   switch (ActualSection) {
     case Name:
       automat.Name = extractName(line);
@@ -149,7 +152,7 @@ void Parser::SectionHandler(const std::string &line,
   throw Utils::ProgramTermination();
 }
 
-std::optional<State<>> Parser::parseState(const std::string &line) const {
+std::optional<State<>> Parser::parseState(const std::string &line) {
   auto trimmed = Utils::Trim(line);
   std::string name, code;
   const auto r1 = std::count(line.begin(), line.end(), '[');

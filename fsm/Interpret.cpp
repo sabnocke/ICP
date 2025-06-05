@@ -16,12 +16,6 @@ std::atomic<unsigned> types::Transition::counter = 0;
 #pragma endregion
 
 namespace Interpreter {
-void Interpret::simpleExample() {
-  sol::state lua;
-  if (const auto res = lua.safe_script("return 0 == 0"); res.valid()) {
-    std::cout << res.get<bool>() << std::endl;
-  }
-}
 
 template <typename T>
 std::optional<T> TestAndSetValue(const std::string& _value) {
@@ -89,7 +83,7 @@ void Interpret::ChangeState(const TransitionGroup& tg) {
   if (const auto t = cond_true.First(); t.has_value()) {
     activeState = t.value().to;
   } else {
-    LOG(FATAL) << "No next state found, but expected one";
+    LOG(ERROR) << "No next state found, but expected one";
     throw Utils::ProgramTermination();
   }
   std::cout << "STATE: " << activeState << std::endl;
@@ -119,6 +113,18 @@ void Interpret::ChangeState(const TransitionGroup& tg) {
     LOG(ERROR) << err.what();
     throw Utils::ProgramTermination();
   }
+}
+
+bool Interpret::WaitShortestTimer(const TransitionGroup& group) {
+  if (const auto shortest = group.SmallestTimer(); shortest.has_value()) {
+    const auto duration =
+        std::chrono::milliseconds(shortest.value().delayInt);
+    std::this_thread::sleep_for(duration);
+
+    ChangeState(group);
+    return true;
+  }
+  return false;
 }
 
 void Interpret::LinkDelays() {
@@ -181,9 +187,8 @@ void Interpret::PrepareStates() {
         a.has_value() && a.value().valid()) {
       n.Action = a.value();
     } else {
-      //! this might be an error
-      //TODO add error and sol error
-      n.Action = sol::protected_function{};
+      LOG(ERROR) << "Unexpected error while setting state action";
+      throw Utils::ProgramTermination();
     }
 
     stateGroupFunction.Add(n);
@@ -306,15 +311,15 @@ std::string Interpret::ExtractInput(const std::string& line) {
   const auto s = Utils::Split(l, '=');
   if (s.size() != 2) {
     LOG(ERROR) << absl::StrFormat("Possibly malformed input: %v", line);
-    return {};  //TODO terminate?
+    throw Utils::ProgramTermination();
   }
   auto name = Utils::Trim(s[0]);
   auto value = Utils::Trim(s[1]);
 
   if (const auto pos = std::find(inputs.begin(), inputs.end(), name);
       pos == inputs.end()) {
-    LOG(ERROR) << "Cannot dynamically define new signals";
-    return {};  //TODO terminate or not?
+    LOG(ERROR) << "Cannot dynamically define new signals or required signal is missing";
+    throw Utils::ProgramTermination();
   }
   lua["Inputs"][name] = value;
   return name;
@@ -345,35 +350,30 @@ std::pair<int, std::string> Interpret::ParseStdinInput(
     return {-1, ""};
   }
   if (Utils::Contains(line, "log")) {
-    //! Currently not implemented
-    //TODO should i do it?
+    LOG(ERROR) << "Function 'log' is not implemented";
+    throw Utils::ProgramTermination();
   }
   return {0, ""};
 }
 
 int Interpret::Execute() {
-  //! beware this function in its current state causes UB (Undefined Behaviour)
-  //! specifically (and most likely) a memory corruption
-  //! there are two errors related to that `bad optional access` and assertion error from abseil with raw_hash_set being destroyed
-  //! these happen in unrelated places (later comments show where)
-  std::cerr << "Entered execute" << std::endl;
-  std::cerr << transitionGroup << std::endl;
   transitionGroup.GroupTransitions();
-  std::cerr << transitionGroup << std::endl;
   while (true) {
+    std::cerr << "Active state: " << activeState << std::endl;
+
     // First find all reachable transitions from current transition
-    std::cout << "Active state: " << activeState << std::endl;  //! <<< raw_hash_set was destroyed error (but only after second pass)
     auto transitions = transitionGroup.Retrieve(activeState);
-    // transitions->GroupTransitions();
     if (!transitions.has_value()) {
       LOG(ERROR) << "No transitions for state: " << activeState << std::endl;
       break;
     }
-    auto& transitions_v = transitions.value();
-    if (transitions_v.None())
-      break;
 
-    std::cerr << "Next states: " << std::endl << transitions_v << std::endl;
+    auto& transitions_v = transitions.value();
+    if (transitions_v.None()) {
+      LOG(ERROR) << "No transitions for state: " << activeState << std::endl;
+      break;
+    }
+
     // Find all free transitions
     if (auto r = transitions_v.WhereNone(); r.Some()) {
       ChangeState(r);
@@ -382,7 +382,7 @@ int Interpret::Execute() {
 
     TransitionGroup event_true;
     TransitionGroup event_false;
-    TransitionGroup timer_true;   //! <<< bad optional access (during first pass)
+    TransitionGroup timer_true;
     TransitionGroup timer_false;
 
     for (const auto& [fst, snd] : transitions_v) {
@@ -398,8 +398,6 @@ int Interpret::Execute() {
         timer_true << snd;
     }
 
-    std::cerr << "event_true:" << std::endl << event_true << std::endl;
-    std::cerr << "event_false:" << std::endl << event_false << std::endl;
     if (auto zero = timer_false & event_false; zero.Some()) {
       ChangeState(zero);
       continue;

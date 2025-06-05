@@ -9,10 +9,6 @@
 namespace types {
 template <typename T = std::string>
 struct State {
-  static_assert(std::disjunction_v<std::is_same<T, std::string>,
-                                   std::is_same<T, sol::protected_function>>,
-                "State can only be configured with either 'string' or "
-                "'protected_function");
   using ContainedType = T;
   std::string Name;
   T Action;

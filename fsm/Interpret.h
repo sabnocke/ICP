@@ -11,8 +11,6 @@
  */
 #pragma once
 
-#include <thread>
-
 #include "AutomatLib.h"
 #include "Stopwatch.h"
 #include "types/all_types.h"
@@ -58,6 +56,7 @@ class Interpret {
   std::vector<std::string> outputs = _automat.outputs;
 
   void ChangeState(const TransitionGroup& tg);
+  bool WaitShortestTimer(const TransitionGroup& group);
 
   void LinkDelays();
 
@@ -88,18 +87,6 @@ class Interpret {
 
   Timer<> timer{};
 
-  bool WaitShortestTimer(const TransitionGroup& group) {
-    if (const auto shortest = group.SmallestTimer(); shortest.has_value()) {
-      const auto duration =
-          std::chrono::milliseconds(shortest.value().delayInt);
-      std::this_thread::sleep_for(duration);
-
-      ChangeState(group);
-      return true;
-    }
-    return false;
-  }
-
   TransitionGroup WhenConditionTrue(const TransitionGroup& group);
 
  public:
@@ -112,11 +99,6 @@ class Interpret {
   void Prepare();
 
   explicit Interpret(const AutomatLib::Automat& automat);
-
-  /**
-   * @brief Statická ukázková metoda demonstrující jednoduché použití interpretu.
-   */
-  static void simpleExample();
 
   std::string ExtractInput(const std::string& line);
   bool ExtractCommand(const std::string& line);

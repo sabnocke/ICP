@@ -49,7 +49,7 @@ class Parser {
      * @return pair{název, kód akce} nebo nullopt.
      */
   [[nodiscard]] std::optional<State<>> parseState(
-      const std::string &line) const;
+      const std::string &line);
 
   /**
      * @brief Zkusí rozparsovat proměnnou.
@@ -100,47 +100,20 @@ class Parser {
 
     return Utils::TrimEach(result2);
   }
-  template <bool InputSignal>
-  [[nodiscard]] auto parseSignalMultiLine(const std::string &line) const {
-    auto terminate = [n = lineNumber, l = line]() {
-      LOG(ERROR) << absl::StrFormat("[%lu] Malformed signal definition: %s", n,
-                                    l);
-      throw Utils::ProgramTermination();
-    };
-    std::string result;
-    if constexpr (InputSignal) {
-      if (result = Utils::RemovePrefix<false>(line, "input:", true);
-          result.empty()) {
-        terminate();
-      }
-    } else {
-      if (result = Utils::RemovePrefix<false>(line, "output:", true);
-          result.empty()) {
-        terminate();
-      }
-    }
-
-    auto result2 = Utils::Split(result, ',');
-    if (result2.empty()) {
-      terminate();
-    }
-
-    return Utils::TrimEach(result2);
-  }
 
  private:
   /**
      * @brief Interní handler na aktuální sekci, volá konkrétní parse*.
      */
   void SectionHandler(const std::string &line,
-                      AutomatLib::Automat &automat) const;
+                      AutomatLib::Automat &automat);
 
   Section ActualSection = Name; /**< Aktuální zpracovávaná sekce */
   size_t lineNumber = 0;
-  mutable bool SignalsSplitDefinition = false;
-  mutable bool collecting = false;
-  mutable std::stringstream collector;
-  mutable size_t bracketCounter = 0;
+  bool SignalsSplitDefinition = false;
+  bool collecting = false;
+  std::stringstream collector;
+  size_t bracketCounter = 0;
 
   std::unique_ptr<RE2> name_pattern_{};        /**< Regex pro jméno */
   std::unique_ptr<RE2> comment_pattern_{};     /**< Regex pro komentář */

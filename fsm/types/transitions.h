@@ -17,7 +17,6 @@
 #include <absl/container/flat_hash_set.h>
 #include <absl/container/node_hash_map.h>
 #include <absl/strings/str_format.h>
-#include <absl/log/log.h>
 
 #include <algorithm>
 #include <optional>
@@ -31,7 +30,6 @@
 #include "transitions.h"
 
 namespace types {
-/*class TransitionGroup;*/
 
 /**
  * @class Transition
@@ -157,16 +155,7 @@ class TransitionGroup {
 
   TransitionGroupType primary{};
 
-  /*
-   * There is an issue with this being a map of TG's since it reserves a lot of memory
-   * (each from can have multiple common transitions).
-   * One way of handling this is either making index_by_from a map of keys into primary
-   * or a map of references (pointers) into primary.
-   * Both would still require using GroupTransitions() to keep the index updated
-   * But they would differ in accessing the underlying element.
-   * Any change to this also requires a change in Retrieve()
-   */
-  absl::flat_hash_map<std::string, TransitionGroup> index_by_from{};
+  absl::flat_hash_map<std::string, std::vector<unsigned>> index_by_from2{};
 
   TransitionGroup() = default;
   explicit TransitionGroup(TransitionGroupType&& tgt) {
@@ -176,15 +165,14 @@ class TransitionGroup {
 
   TransitionGroup& operator<<(const Transition& tr) {
     primary[tr.Id] = tr;
-    index_by_from[primary.at(tr.Id).from].primary[tr.Id] = tr;
+    index_by_from2[primary.at(tr.Id).from].emplace_back(tr.Id);
     return *this;
   }
 
   void Add(Transition&& transition) {
     primary[transition.Id] = std::move(transition);
 
-    index_by_from[primary.at(transition.Id).from].primary[transition.Id] =
-        primary[transition.Id];
+    index_by_from2[primary.at(transition.Id).from].emplace_back(transition.Id);
   }
 
   [[nodiscard]] size_t Size() const { return primary.size(); }
@@ -199,32 +187,23 @@ class TransitionGroup {
 
   void GroupTransitions() {
     for (const auto& [id, tr] : primary) {
-      index_by_from[primary.at(tr.Id).from].primary[id] = tr;
+      index_by_from2[primary.at(tr.Id).from].emplace_back(id);
     }
   }
 
   std::optional<TransitionGroup> Retrieve(const std::string& input) const& {
-    if (index_by_from.empty())
+    if (index_by_from2.empty())
       return std::nullopt;
 
-    if (index_by_from.contains(input))
-      return index_by_from.at(input);
-
+    if (index_by_from2.contains(input)) {
+      auto final = TransitionGroup{};
+      const auto index = index_by_from2.at(input);
+      for (auto& i : index) {
+        final << primary.at(i);
+      }
+      return final;
+    }
     return std::nullopt;
-  }
-
-  TransitionGroup RetrieveEx(const std::string& input) const {
-    if (index_by_from.empty()) {
-      LOG(ERROR) << "Index is empty";
-      throw Utils::ProgramTermination();
-    }
-
-    if (index_by_from.contains(input)) {
-      return index_by_from.at(input);
-    }
-
-    LOG(ERROR) << "Input does not exist: " << input;
-    throw Utils::ProgramTermination();
   }
 
   template <typename Predicate>
@@ -311,6 +290,13 @@ class TransitionGroup {
     }
     final.GroupTransitions();
     return final;
+  }
+
+  bool operator==(const TransitionGroup& other) const {
+    return primary == other.primary;
+  }
+  bool operator!=(const TransitionGroup& other) const {
+    return !(*this == other);
   }
 
   friend std::ostream& operator<<(std::ostream& os,
