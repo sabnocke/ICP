@@ -34,17 +34,6 @@ std::optional<T> TestAndSetValue(const std::string& _value) {
   return std::nullopt;
 }
 
-Interpret::Interpret(AutomatLib::Automat&& automat)
-    : _automat(std::move(automat)) {
-  lua.open_libraries(sol::lib::base);
-  lua["elapsed"] = [&]() { return timer.elapsed(); };
-  if (const auto file = lua.script_file("stdlib.lua"); !file.valid()) {
-    const sol::error err = file;
-    LOG(ERROR) << absl::StrFormat("Failed to open stdlib.lua: %v", err.what());
-    throw Utils::ProgramTermination();
-  }
-  activeState = stateGroup.First().Name;
-}
 Interpret::Interpret(const AutomatLib::Automat& automat) {
   transitionGroup.primary.reserve(automat.transitions.Size() +
                                   5);  // Some reserve
@@ -202,11 +191,6 @@ void Interpret::PrepareStates() {
 }
 
 TransitionGroup Interpret::WhenConditionTrue(const TransitionGroup& group) {
-  //TODO remove later
-#pragma region debug
-  std::cerr << "Entered WhenConditionTrue" << std::endl;
-  std::cerr << group << std::endl;
-#pragma endregion
   TransitionGroup on_true;
   for (const auto& [id, transition] : group.primary) {
     if (!transition.hasCondition)
@@ -270,18 +254,6 @@ bool Interpret::ExtractBool(const sol::protected_function_result& result) {
 
   const auto ret = result[0];
   const auto val_type = ret.get_type();
-  /*auto val = InterpretResult(result);
-  auto ind = val.index();
-  std::cerr << "variant index: " << ind << std::endl;
-  if (ind == 1)
-    std::cerr << "Received: " << std::boolalpha << std::get<1>(val)
-              << std::endl;
-  if (ind == 2)
-    std::cerr << "Received: " << std::get<2>(val) << std::endl;
-  if (ind == 3)
-    std::cerr << "Received: " << std::get<3>(val) << std::endl;
-  if (ind == 4)
-    std::cerr << "Received: " << std::get<4>(val) << std::endl;*/
 
   if (val_type == sol::type::nil) {
     return false;
@@ -297,7 +269,6 @@ void Interpret::PrepareTransitions() {
   for (auto& [id, transition] : transitionGroup) {
     if (auto r = TestAndSet(transition.condition);
         r.has_value() && r.value().valid()) {
-      /*std::cerr << r.value()().get<bool>() << std::endl;*/
       transition.function = r.value();
       transition.hasCondition = transition.function.valid();
     } else {
@@ -330,8 +301,7 @@ void Interpret::Prepare() {
 }
 
 std::string Interpret::ExtractInput(const std::string& line) {
-  auto l = Utils::RemovePrefix<false>(line, "input:");
-  /*std::cerr << "Removed prefix: " << l << std::endl;*/
+  const auto l = Utils::RemovePrefix<false>(line, "input:");
   // should be <name> = <value>
   const auto s = Utils::Split(l, '=');
   if (s.size() != 2) {

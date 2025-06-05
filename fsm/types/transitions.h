@@ -17,6 +17,7 @@
 #include <absl/container/flat_hash_set.h>
 #include <absl/container/node_hash_map.h>
 #include <absl/strings/str_format.h>
+#include <absl/log/log.h>
 
 #include <algorithm>
 #include <optional>
@@ -28,11 +29,6 @@
 
 #include "../Utils.h"
 #include "transitions.h"
-
-//TODO or figure out different way of not copying it so much (maybe since the examples won't be complex, copying is acceptable?)
-//TODO Where and coll. might instead of creating new copies create TG with different contained type
-//TODO enable_if then could give different implementation of certain functions
-//TODO thus removing the need for two classes and a lot of moving
 
 namespace types {
 /*class TransitionGroup;*/
@@ -172,8 +168,6 @@ class TransitionGroup {
    */
   absl::flat_hash_map<std::string, TransitionGroup> index_by_from{};
 
-  /*absl::flat_hash_set<std::reference_wrapper<Transition>> index{};*/
-
   TransitionGroup() = default;
   explicit TransitionGroup(TransitionGroupType&& tgt) {
     primary = std::move(tgt);
@@ -187,14 +181,10 @@ class TransitionGroup {
   }
 
   void Add(Transition&& transition) {
-    /*std::cerr << "Add received transition: " << transition << std::endl;*/
-    /*transitions.emplace_back(transition);*/
     primary[transition.Id] = std::move(transition);
 
     index_by_from[primary.at(transition.Id).from].primary[transition.Id] =
         primary[transition.Id];
-    /*std::cerr << "Add inserted transition: " << primary[transition.Id]
-              << std::endl;*/
   }
 
   [[nodiscard]] size_t Size() const { return primary.size(); }
@@ -223,47 +213,29 @@ class TransitionGroup {
     return std::nullopt;
   }
 
-  /// Retrieves all transitions that pass filtering by predicate
-  ///
-  /// @remark In case of using Split, first is what passed filtering and second what didn't
-  ///
-  /// @tparam Split Decides whether to discard what didn't pass filtering or keep it
-  /// @tparam ResultType Depending on Split, is either pair of TransitionsReference or just TransitionsReference
-  /// @return Result
-  template <
-      bool Split = false, typename Predicate,
-      typename ResultType = std::conditional_t<
-          Split, std::pair<TransitionGroup, TransitionGroup>, TransitionGroup>>
-  [[nodiscard]] ResultType Where(const Predicate& pred) const {
-    if constexpr (Split) {
-      auto on_true = TransitionGroup();
-      auto on_false = TransitionGroup();
-
-      for (auto& [id, transition] : primary) {
-        if (pred(transition))
-          on_true.primary[id] = transition;
-        else
-          on_false.primary[id] = transition;
-      }
-
-      return std::make_pair(on_true, on_false);
-    } else {
-      auto on_true = TransitionGroup();
-
-      for (auto [id, transition] : primary) {
-        if (pred(transition))
-          on_true.primary[id] = transition;
-      }
-      return on_true;
+  TransitionGroup RetrieveEx(const std::string& input) const {
+    if (index_by_from.empty()) {
+      LOG(ERROR) << "Index is empty";
+      throw Utils::ProgramTermination();
     }
+
+    if (index_by_from.contains(input)) {
+      return index_by_from.at(input);
+    }
+
+    LOG(ERROR) << "Input does not exist: " << input;
+    throw Utils::ProgramTermination();
   }
 
-  template <
-      bool Split = false,
-      typename ResultType = std::conditional_t<
-          Split, std::pair<TransitionGroup, TransitionGroup>, TransitionGroup>>
-  [[nodiscard]] ResultType WhereEvent() const {
-    return Where<Split>([](const auto& tr) { return !tr.input.empty(); });
+  template <typename Predicate>
+  [[nodiscard]] TransitionGroup Where(const Predicate& pred) const {
+    auto on_true = TransitionGroup();
+
+    for (auto [id, transition] : primary) {
+      if (pred(transition))
+        on_true.primary[id] = transition;
+    }
+    return on_true;
   }
 
   template <
@@ -271,21 +243,11 @@ class TransitionGroup {
       typename ResultType = std::conditional_t<
           Split, std::pair<TransitionGroup, TransitionGroup>, TransitionGroup>>
   [[nodiscard]] ResultType WhereTimer() const {
-    return Where<Split>([](const auto& tr) { return !tr.delay.empty(); });
-  }
-
-  template <
-      bool Split = false,
-      typename ResultType = std::conditional_t<
-          Split, std::pair<TransitionGroup, TransitionGroup>, TransitionGroup>>
-  ResultType WhereCondition() const {
-    return Where<Split>([](const auto& tr) {
-      return !tr.condition.empty() && tr.hasCondition;
-    });
+    return Where([](const auto& tr) { return !tr.delay.empty(); });
   }
 
   [[nodiscard]] TransitionGroup WhereNone() const {
-    return Where<>([](const auto& tr) {
+    return Where([](const auto& tr) {
       return tr.hasCondition && tr.delay.empty() && tr.input.empty();
     });
   }
@@ -323,29 +285,18 @@ class TransitionGroup {
 
   TransitionGroup operator&(const TransitionGroup& other) {
     auto final = TransitionGroupType();
-    auto first = ranges::size(primary | ranges::views::values);
-    auto second = ranges::size(other.primary | ranges::views::values);
+    const auto first = ranges::size(primary | ranges::views::values);
+    const auto second = ranges::size(other.primary | ranges::views::values);
     final.reserve(std::min(first, second));
 
     auto small = first > second ? other.primary : primary;
 
-    for (auto& el : small) {
-      if (other.primary.contains(el.first) && primary.contains(el.first))
-        final[el.first] = el.second;
+    for (const auto& [fst, snd] : small) {
+      if (other.primary.contains(fst) && primary.contains(fst))
+        final[fst] = snd;
     }
 
     return TransitionGroup(std::move(final));
-  }
-
-  TransitionGroup operator&(const TransitionGroup& other) const {
-    auto small = Size() > other.Size() ? other.primary : primary;
-    auto final = TransitionGroup();
-
-    for (const auto& [id, tr] : small) {
-      if (primary.contains(tr.Id) && other.primary.contains(tr.Id))
-        final.primary[id] = tr;
-    }
-    return final;
   }
 
   TransitionGroup Merge(const TransitionGroup& other) const {
@@ -365,9 +316,6 @@ class TransitionGroup {
   friend std::ostream& operator<<(std::ostream& os,
                                   const TransitionGroup& group) {
     for (const auto& [id, tr] : group.primary) {
-      /*if (tr == group.primary.cend()->second)
-        os << tr;
-      else*/
         os << tr << std::endl;
     }
     return os;

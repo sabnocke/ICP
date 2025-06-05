@@ -53,11 +53,9 @@ class Interpret {
 
   /// Seznam registrovaných vstupních signálů
   std::vector<std::string> inputs = _automat.inputs;
-  /*[[deprecated]] absl::node_hash_map<std::string, std::string> inputsValues;*/
 
   /// Seznam registrovaných výstupních signálů
   std::vector<std::string> outputs = _automat.outputs;
-  /*[[deprecated]] absl::node_hash_map<std::string, std::string> outputsValues;*/
 
   void ChangeState(const TransitionGroup& tg);
 
@@ -113,11 +111,6 @@ class Interpret {
    */
   void Prepare();
 
-  /**
-   * @brief Konstruktor přijímající existující model automatu.
-   * @param automat R-hodnota instance třídy Automat.
-   */
-  explicit Interpret(AutomatLib::Automat&& automat);
   explicit Interpret(const AutomatLib::Automat& automat);
 
   /**

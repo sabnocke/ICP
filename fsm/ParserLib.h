@@ -132,7 +132,7 @@ class Parser {
   /**
      * @brief Interní handler na aktuální sekci, volá konkrétní parse*.
      */
-  bool SectionHandler(const std::string &line,
+  void SectionHandler(const std::string &line,
                       AutomatLib::Automat &automat) const;
 
   Section ActualSection = Name; /**< Aktuální zpracovávaná sekce */

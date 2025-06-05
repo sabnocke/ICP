@@ -38,7 +38,7 @@ AutomatLib::Automat Parser::parseAutomat(const std::string &file) {
   AutomatLib::Automat automat;
   std::ifstream ifs(file);
   if (!ifs) {
-    std::cerr << "Can't open file " << file << std::endl;
+    LOG(FATAL) << "Can't open file " << file << std::endl;
     return std::move(automat);
   }
   std::string line;
@@ -60,18 +60,18 @@ AutomatLib::Automat Parser::parseAutomat(const std::string &file) {
       continue;
     }
 
-    if (Utils::Contains(line, "Variables")) {
+    if (Utils::Contains(line, "Variables:")) {
       ActualSection = Variables;
       continue;
     }
 
-    if (absl::EqualsIgnoreCase(line, "States:")) {
-      ActualSection = States;
-      continue;
-    }
 
-    if (collecting || Utils::Contains(line, "State")) {
 
+    if (collecting || Utils::Contains(line, "state")) {
+      if (absl::EqualsIgnoreCase(line, "States:")) {
+        ActualSection = States;
+        continue;
+      }
       ActualSection = States;
       SectionHandler(line, automat);
       continue;
@@ -104,55 +104,52 @@ AutomatLib::Automat Parser::parseAutomat(const std::string &file) {
   return std::move(automat);
 }
 
-bool Parser::SectionHandler(const std::string &line,
+void Parser::SectionHandler(const std::string &line,
                             AutomatLib::Automat &automat) const {
   switch (ActualSection) {
     case Name:
       automat.Name = extractName(line);
-      return true;
+      return;
     case Comment: {
       const auto comment = Utils::RemovePrefix<false>(line, "comment:");
       const auto trimmed = Utils::Trim(comment);
       if (trimmed.empty())
-        return true;
+        return;
       automat.Comment = trimmed;
       std::cerr << "Comment: " << automat.Comment << std::endl;
-      return true;
+      return;
     }
     case States: {
       if (const auto val = parseState(line); val.has_value()) {
         automat.addState(val.value());
       }
-      return true;
+      return;
     }
     case Transitions: {
       automat.addTransition(parseTransition(line));
-      return true;
+      return;
     }
     case Variables:
       automat.addVariable(parseVariable(line));
-      return true;
+      return;
     case Inputs: {
       for (const auto &name : parseSignal<true>(line)) {
         automat.addInput(name);
       }
-      return true;
+      return;
     }
-
     case Outputs:
       for (const auto &name : parseSignal<false>(line)) {
         automat.addOutput(name);
       }
-      return true;
+      return;
   }
 
   ABSL_LOG(ERROR) << "Reached SectionHandler but no valid section was chosen.";
-  // throw Utils::ProgramTermination();
-  return false;  //TODO or terminate?
+  throw Utils::ProgramTermination();
 }
 
 std::optional<State<>> Parser::parseState(const std::string &line) const {
-
   auto trimmed = Utils::Trim(line);
   std::string name, code;
   const auto r1 = std::count(line.begin(), line.end(), '[');
@@ -218,8 +215,7 @@ Transition Parser::parseTransition(const std::string &line) const {
                      &delay)) {
     const auto cond2 = Utils::Remove(cond, '[');
     const auto cond3 = Utils::Remove(cond2, ']');
-    //TODO maybe move it too
-    auto t = Transition{from, to, input, std::move(Utils::Trim(cond3)), delay};
+    auto t = Transition{from, to, input, Utils::Trim(cond3), delay};
     return t;
   }
 
