@@ -107,7 +107,7 @@ void MainWindow::setupConnections() {
   connect(ui->actionImport, &QAction::triggered, this, &MainWindow::onImportClicked);
 
   connect(ui->startButton, &QPushButton::clicked, this, &MainWindow::onStartClicked);
-
+  connect(ui->stopButton, &QPushButton::clicked, this, &MainWindow::onStopClicked);
 }
 
 // Switches scene mode to AddState
@@ -459,6 +459,16 @@ void MainWindow::handleFSMStdout() {
 void MainWindow::handleFSMStderr() {
   const QString error = fsmProcess->readAllStandardError();
   appendToTerminal("ERROR:" + error);
+}
+
+// Stops the FSM process
+void MainWindow::onStopClicked() {
+  if (fsmProcess && fsmProcess->state() == QProcess::Running) {
+    fsmProcess->write("cmd: stop\n");
+    appendToTerminal("Stopping FSM process ...");
+  } else {
+    appendToTerminal("No FSM process is running.");
+  }
 }
 
 // Called when the FSM runtime process exits

@@ -112,6 +112,9 @@ private slots:
   /// Starts the FSM process with the current model.
   void onStartClicked();
 
+  /// Stops the FSM process.
+  void onStopClicked();
+
 private:
   Ui::MainWindow* ui;              ///< UI definition generated from Qt Designer
   GraphicsScene* scene;           ///< Scene handling the FSM editor canvas
