@@ -414,11 +414,14 @@ void MainWindow::onStartClicked() {
   appendToTerminal("Starting FSM process ...");
   fsmProcess = new QProcess(this);
   connect(fsmProcess, &QProcess::readyReadStandardOutput, this, &MainWindow::handleFSMStdout);
+  connect(fsmProcess, &QProcess::readyReadStandardError, this, &MainWindow::handleFSMStderr);
   connect(fsmProcess, QOverload<int, QProcess::ExitStatus>::of(&QProcess::finished),
           this, &MainWindow::onFSMFinished);
 
-  QString fsmPath = QCoreApplication::applicationDirPath() + "/../../../Release/fsm.exe";
+  QString fsmPath = QCoreApplication::applicationDirPath() + "/../../../Debug/fsm.exe";
   fsmPath = QDir::cleanPath(fsmPath);
+  fsmProcess->setWorkingDirectory(QCoreApplication::applicationDirPath() + "/../../../");
+  fsmProcess->setProcessChannelMode(QProcess::SeparateChannels);
   fsmProcess->start(fsmPath, QStringList() << tempFilePath);
 
   if (!fsmProcess->waitForStarted()) {
@@ -433,23 +436,29 @@ void MainWindow::onStartClicked() {
 // Handles new output from FSM runtime
 // Parses FSM messages (STATE, INPUT_REQUEST) and updates GUI or logs
 void MainWindow::handleFSMStdout() {
-  const QString output = fsmProcess->readAllStandardOutput();
-  const QStringList lines = output.split('\n', Qt::SkipEmptyParts);
-  for (const QString& line : lines) {
-    if (line.startsWith("STATE:")) {
-      updateCurrentState(line.mid(6).trimmed());
+  while (fsmProcess->canReadLine()) {
+    QString line = QString::fromUtf8(fsmProcess->readLine()).trimmed();
+
+    if (line.startsWith("Active state:")) {
+      updateCurrentState(line.mid(QString("Active state:").length()).trimmed());
     } else if (line.startsWith("INPUT_REQUEST:")) {
       QString prompt = line.mid(QString("INPUT_REQUEST:").length()).trimmed();
       appendToTerminal("Input requested: " + prompt);
 
       // Allow user to enter response
       ui->outputTerminal->setReadOnly(false);
-      ui->outputTerminal->appendPlainText(">> ");  // show prompt
-      waitingForInput = true;  // Set flag
+      ui->outputTerminal->appendPlainText(">> "); // show prompt
+      waitingForInput = true; // Set flag
     } else {
-      appendToTerminal(line.trimmed());
+      appendToTerminal(line);
     }
   }
+}
+
+// Handles error outputs from FSM runtime
+void MainWindow::handleFSMStderr() {
+  const QString error = fsmProcess->readAllStandardError();
+  appendToTerminal("ERROR:" + error);
 }
 
 // Called when the FSM runtime process exits

@@ -159,6 +159,11 @@ private:
    * @brief Handles new output lines received from FSM stdout.
    */
   void handleFSMStdout();
+
+  /**
+   * @brief Handles error outputs received from FSM stderr.
+   */
+  void handleFSMStderr();
   
   /**
    * @brief Called when the FSM process terminates.
