@@ -89,7 +89,7 @@ class Parser {
       if (result = Utils::RemovePrefix<false>(line, "output:", true);
           result.empty()) {
         // terminate();
-        return std::vector<std::string>();
+        return {};
       }
     }
 
