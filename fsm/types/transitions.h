@@ -62,7 +62,7 @@ class Transition {
     Id = ++counter;
   }
 
-  explicit Transition(Transition&& other) noexcept
+  Transition(Transition&& other) noexcept
       : from(std::move(other.from)),
         to(std::move(other.to)),
         input(std::move(other.input)),
@@ -75,7 +75,7 @@ class Transition {
     Id = other.Id;
   }
 
-  Transition() { /*Id = ++counter;*/ }
+  Transition() = default;
 
   Transition(const Transition& other) = default;
   Transition& operator=(const Transition& other) = default;
@@ -191,7 +191,8 @@ class TransitionGroup {
     }
   }
 
-  std::optional<TransitionGroup> Retrieve(const std::string& input) const& {
+  [[nodiscard]] std::optional<TransitionGroup> Retrieve(
+      const std::string& input) const& {
     if (index_by_from2.empty())
       return std::nullopt;
 
@@ -206,11 +207,22 @@ class TransitionGroup {
     return std::nullopt;
   }
 
+  [[nodiscard]] std::vector<std::string> YieldInputNames() const {
+    std::vector<std::string> result;
+    for (const auto& [id, tr] : primary) {
+      if (tr.input.empty())
+        continue;
+      std::cout << "Input is " << tr.input << std::endl;
+      result.emplace_back(tr.input);
+    }
+    return result;
+  }
+
   template <typename Predicate>
   [[nodiscard]] TransitionGroup Where(const Predicate& pred) const {
     auto on_true = TransitionGroup();
 
-    for (auto [id, transition] : primary) {
+    for (auto& [id, transition] : primary) {
       if (pred(transition))
         on_true.primary[id] = transition;
     }
@@ -242,7 +254,9 @@ class TransitionGroup {
     return min_v;
   }
 
-  bool Contains(const Transition& tr) const { return primary.contains(tr.Id); }
+  [[nodiscard]] bool Contains(const Transition& tr) const {
+    return primary.contains(tr.Id);
+  }
 
   [[nodiscard]] std::optional<Transition> First() const {
     if (primary.empty()) {
@@ -278,12 +292,12 @@ class TransitionGroup {
     return TransitionGroup(std::move(final));
   }
 
-  TransitionGroup Merge(const TransitionGroup& other) const {
+  [[nodiscard]] TransitionGroup Merge(const TransitionGroup& other) const {
     auto large = Size() > other.Size() ? primary : other.primary;
     auto final = TransitionGroup{};
     final.primary = primary;
 
-    for (auto [id, tr] : other.primary) {
+    for (auto& [id, tr] : other.primary) {
       if (auto seek = primary.find(id); seek != primary.end()) {
         final << tr;
       }
@@ -302,7 +316,7 @@ class TransitionGroup {
   friend std::ostream& operator<<(std::ostream& os,
                                   const TransitionGroup& group) {
     for (const auto& [id, tr] : group.primary) {
-        os << tr << std::endl;
+      os << tr << std::endl;
     }
     return os;
   }

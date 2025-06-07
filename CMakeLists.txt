@@ -47,3 +47,12 @@ target_link_libraries(fsm PRIVATE
 )
 
 # add_subdirectory(src/icp-qt) # uncomment this for the project to work, commented out for debugging of fsm
+
+add_custom_command(
+        TARGET fsm
+        POST_BUILD
+        COMMAND ${CMAKE_COMMAND} -E copy
+        "${CMAKE_SOURCE_DIR}/stdlib.lua"
+        "$<TARGET_FILE_DIR:fsm>"
+        COMMENT "Copying stdlib.lua to output directory for $<CONFIG> build"
+)

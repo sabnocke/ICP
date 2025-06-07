@@ -2,6 +2,7 @@
 
 #include <absl/log/log.h>
 #include <absl/strings/match.h>
+#include <absl/strings/str_join.h>
 #include <re2/re2.h>
 
 #include <algorithm>
@@ -406,6 +407,9 @@ int Interpret::Execute() {
       if (WaitShortestTimer(first))
         continue;
     }
+
+    auto items = event_true.YieldInputNames();
+    std::cout << "REQUEST_INPUTS: "  << absl::StrJoin(items, ", ") << std::endl;
 
     std::string line;
     std::getline(std::cin, line);
