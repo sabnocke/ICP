@@ -1,5 +1,5 @@
 name WashingMachine
-comment: Simulace pracího cyklu pračky: plnění, praní, máchání, odstřeďování, hotovo.
+comment: Simulation of a washing machine cycle: filling, washing, rinsing, spinning, done.
 Input:
 Output: status
 

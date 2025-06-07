@@ -1,4 +1,4 @@
-# ms    událost
+# ms    event
 0      toggle
 1000   toggle
 2000   toggle

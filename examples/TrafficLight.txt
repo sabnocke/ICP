@@ -1,5 +1,5 @@
 name TrafficLight
-# křižovatka + timery
+# traffic intersection + timers
 Input:
 Output: red, green, yellow
 

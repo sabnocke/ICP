@@ -1,5 +1,5 @@
 name Toggle
-comment: přepíná mezi 0 a 1 na každej toggle
+comment: toggles between 0 and 1
 Input: toggle
 Output: out
 

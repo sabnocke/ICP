@@ -1,16 +1,16 @@
 name BuildPipeline
-# Simulace CI/CD pipeliny: fetch, build, test, deploy, report, s revert cyklem při chybě.
+# Simulation of a CI/CD pipeline: fetch, build, test, deploy, report, with a revert cycle on error.
 Input: commit, test_result, deploy_approval
 Output: status
 
 Variables:
-    int timeout       = 8000      # maximální doba pro fázi fetch/build/test/deploy
+    int timeout       = 8000      # maximum duration for the fetch/build/test/deploy phase
     bool tests_passed = false
     string last_commit = ""
 States:
     state IDLE {
         action {
-            output("status", "IDLE: cekam na commit");
+            output("status", "IDLE: waiting for commit");
         }
     }
     state FETCH {

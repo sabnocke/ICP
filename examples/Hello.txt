@@ -1,5 +1,5 @@
 name Hello
-# Hello-world příklad: na 'hi' odpoví 'hello'
+# Hello-world example: responds with 'hello' to 'hi'
 Input: hi
 Output: greeting
 

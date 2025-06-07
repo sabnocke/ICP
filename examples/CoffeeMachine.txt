@@ -1,5 +1,5 @@
 name CoffeeMachine
-comment: Simulace automatu kávovaru s mletím, extrakcí, výdejem a čištěním.
+comment: Simulation of a coffee machine with grinding, brewing, dispensing, and cleaning.
 Input:
 Output: status
 
@@ -12,12 +12,12 @@ Variables:
     int cycles    = 1
     int count     = 0
 States:
-    state IDLE     [ return "IDLE: cekam pred cyklem"; ]
-    state GRIND    [ return "GRIND: mleti zrn"; ]
-    state BREW     [ return "BREW: priprava kavy"; ]
-    state DISPENSE [ return "DISPENSE: vydej do salku"; ]
-    state CLEAN    [ count = count + 1; return "CLEAN: cisteni (" .. tonumber(count) .. "/" .. tonumber(cycles) .. ")"; ]
-    state STOPPED  [ return "STOPPED: konec cyklu"; ]
+    state IDLE     [ return "IDLE: waiting before cycle"; ]
+    state GRIND    [ return "GRIND: grinding beans"; ]
+    state BREW     [ return "BREW: brewing coffee"; ]
+    state DISPENSE [ return "DISPENSE: dispensing into cup"; ]
+    state CLEAN    [ count = count + 1; return "CLEAN: cleaning (" .. tonumber(count) .. "/" .. tonumber(cycles) .. ")"; ]
+    state STOPPED  [ return "STOPPED: end of cycle"; ]
 Transitions:
     IDLE     --> GRIND    : [ count < cycles ] @ tIdle
     IDLE     --> STOPPED  : [ count >= cycles ] @ tIdle
@@ -25,4 +25,4 @@ Transitions:
     BREW     --> DISPENSE : @ tBrew
     DISPENSE --> CLEAN    : @ tDispense
     CLEAN    --> IDLE     : [ count < cycles ] @ tClean
-    CLEAN    --> STOPPED  : [ count >= cycles ] @ tClean 
+    CLEAN    --> STOPPED  : [ count >= cycles ] @ tClean
