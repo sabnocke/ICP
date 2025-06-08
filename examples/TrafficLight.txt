@@ -1,5 +1,5 @@
 name TrafficLight
-# traffic intersection + timers
+comment: traffic intersection + timers
 Input:
 Output: red, green, yellow
 
@@ -8,9 +8,9 @@ Variables:
     int tG = 5000
     int tY = 2000
 States:
-    state RED    [ return red ]
-    state GREEN  [ return green ]
-    state YELLOW [ return yellow ]
+    state RED    [ return "red"; ]
+    state GREEN  [ return "green"; ]
+    state YELLOW [ return "yellow"; ]
 Transitions:
     RED    --> GREEN  : @ tR
     GREEN  --> YELLOW : @ tG
