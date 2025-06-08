@@ -96,10 +96,10 @@ void Interpret::ChangeState(const TransitionGroup& tg) {
     std::visit(
         Utils::detail::Overloaded{
             [](const std::string& val) {
-              std::cout << "OUTPUT (string): " << val << std::endl;
+              std::cout << "OUTPUT: " << val << std::endl;
             },
             [](const bool val) {
-              std::cout << "OUTPUT (bool): " << val << std::endl;
+              std::cout << "OUTPUT: " << val << std::endl;
             },
             [](const int val) { std::cout << "OUTPUT: " << val << std::endl; },
             [](const double val) {
@@ -173,11 +173,9 @@ void Interpret::LinkDelays() {
 void Interpret::PrepareVariables() {
   for (const auto& variable : variableGroup.Get()) {
     auto [Type, Name, Value] = variable.Tuple();
-    /*std::cerr << "Variable: " << Type << " " << Name << std::endl;*/
 
     if (absl::EqualsIgnoreCase(Type, "int")) {
       if (auto val = TestAndSetValue<int>(Value); val.has_value()) {
-        /*std::cerr << Name << ": " << val.value() << std::endl;*/
         lua[Name] = val.value();
       }
 
@@ -251,7 +249,6 @@ std::optional<sol::protected_function> Interpret::TestAndSet(
     chunk_to_load = _cond;
   }
 
-  /*std::cerr << chunk_to_load << std::endl;*/
   if (const auto primary = lua.load(chunk_to_load); primary.valid()) {
     return primary.get<sol::protected_function>();
   } else {
@@ -268,7 +265,6 @@ std::optional<sol::protected_function> Interpret::TestAndSet(
 }
 
 bool Interpret::ExtractBool(const sol::protected_function_result& result) {
-  /*std::cerr << "ExtractBool" << std::endl;*/
   if (!result.valid()) {
     const sol::error r_error = result;
     LOG(ERROR) << absl::StrFormat("Lua runtime error during function call: %v",
@@ -307,10 +303,8 @@ void Interpret::PrepareTransitions() {
 
 void Interpret::PrepareSignals() {
   for (auto& signal : inputs) {
-    /*std::cerr << "Signal: " << signal << std::endl;*/
     lua["Inputs"][signal] = "";
   }
-  /*std::cout << std::endl;*/
   for (auto& signal : outputs) {
     lua["Outputs"][signal] = "";
   }
@@ -360,7 +354,6 @@ bool Interpret::ExtractCommand(const std::string& line) {
 std::pair<int, std::string> Interpret::ParseStdinInput(
     const std::string& line) {
   // INPUT, CMD, LOG
-  std::cerr << "Line: " << line << std::endl;
   if (Utils::Contains(line, "input")) {
     std::string signalName = ExtractInput(line);
     return {1, ExtractInput(line)};
