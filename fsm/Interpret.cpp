@@ -155,19 +155,20 @@ void Interpret::LinkDelays() {
     }
     transitionGroup = transitionGroup.Merge(mod);
   }
-
+  auto mod = TransitionGroup();
   for (auto& [id, tr]: hasDelay) {
     if (tr.delayInt != 0)
       continue;
 
     if (auto val = Utils::StringToNumeric<int>(tr.delay); val.has_value()) {
       tr.delayInt = val.value();
+      mod << tr;
     } else {
       continue;
     }
   }
-  transitionGroup = transitionGroup.Merge(hasDelay);
-
+  transitionGroup = transitionGroup.Merge(mod);
+  /*std::cerr << transitionGroup << std::endl;*/
 }
 
 void Interpret::PrepareVariables() {
@@ -369,6 +370,7 @@ std::pair<int, std::string> Interpret::ParseStdinInput(
 }
 
 int Interpret::Execute() {
+  /*std::cerr << transitionGroup << std::endl;*/
   transitionGroup.GroupTransitions();
   while (true) {
     std::cerr << "Active state: " << activeState << std::endl;

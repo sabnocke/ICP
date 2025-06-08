@@ -299,7 +299,9 @@ class TransitionGroup {
 
     for (auto& [id, tr] : other.primary) {
       if (auto seek = primary.find(id); seek != primary.end()) {
+        /*std::cerr << tr << std::endl;*/
         final << tr;
+        /*std::cerr << final.primary.at(tr.Id) << std::endl;*/
       }
     }
     final.GroupTransitions();
