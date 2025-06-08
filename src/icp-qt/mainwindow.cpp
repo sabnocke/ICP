@@ -68,6 +68,7 @@ void MainWindow::on_actionShowHelp_triggered() {
 
 <b>File->Export:</b> Save FSM to a file.<br>
 <b>File->Import:</b> Load FSM from a file.<br><br>
+<b>Edit->Clear all:</b> Clears up all fields.<br><br>
 )";
 
   QMessageBox::information(this, "Help", helpText);
@@ -106,6 +107,7 @@ void MainWindow::setupConnections() {
 
   connect(ui->actionExport, &QAction::triggered, this, &MainWindow::onExportClicked);
   connect(ui->actionImport, &QAction::triggered, this, &MainWindow::onImportClicked);
+  connect(ui->actionClearAll, &QAction::triggered, this, &MainWindow::onClearAllClicked);
 
   connect(ui->startButton, &QPushButton::clicked, this, &MainWindow::onStartClicked);
   connect(ui->stopButton, &QPushButton::clicked, this, &MainWindow::onStopClicked);
@@ -378,6 +380,19 @@ void MainWindow::onImportClicked() {
   model = std::make_shared<AutomatLib::Automat>(std::move(result));
   scene->setMode(EditorMode::Move);
   QMessageBox::information(this, "Import", "FSM imported successfully.");
+}
+
+// Handles clearing logic
+// Clears all GUI fields
+void MainWindow::onClearAllClicked() {
+  ui->automatName->clear();
+  ui->automatComment->clear();
+  ui->automatVariables->clear();
+  ui->automatInputs->clear();
+  ui->automatOutputs->clear();
+  scene->clearScene();
+  ui->graphicsView->scene()->clear();
+  ui->stateActionsTable->setRowCount(0);
 }
 
 // Starts the FSM runtime process with the currently defined model

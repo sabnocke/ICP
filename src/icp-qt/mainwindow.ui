@@ -331,7 +331,14 @@
     </property>
     <addaction name="actionShowHelp"/>
    </widget>
+   <widget class="QMenu" name="menuEdit">
+    <property name="title">
+     <string>Edit</string>
+    </property>
+    <addaction name="actionClearAll"/>
+   </widget>
    <addaction name="menuFIle"/>
+   <addaction name="menuEdit"/>
    <addaction name="menuHelp"/>
   </widget>
   <widget class="QStatusBar" name="statusbar"/>
@@ -348,6 +355,11 @@
   <action name="actionShowHelp">
    <property name="text">
     <string>Show help</string>
+   </property>
+  </action>
+  <action name="actionClearAll">
+   <property name="text">
+    <string>Clear all</string>
    </property>
   </action>
  </widget>

@@ -109,6 +109,9 @@ private slots:
   /// Handles import operation and populates GUI with FSM data.
   void onImportClicked();
 
+  /// Clears all GUI fields.
+  void onClearAllClicked();
+
   /// Starts the FSM process with the current model.
   void onStartClicked();
 
