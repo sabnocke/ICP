@@ -1,13 +1,12 @@
 name Hello
-# Hello-world example: responds with 'hello' to 'hi'
+comment: Hello-world example: responds with 'hello' to 'hi'
 Input: hi
 Output: greeting
 
 Variables:
-    # žádné
 States:
-    state WAIT  [ return ""      ]
-    state HELLO [ return hello   ]
+    state WAIT  [ return "";      ]
+    state HELLO [ return "hello"; ]
 Transitions:
     WAIT  --> HELLO : hi
     HELLO --> WAIT  : @ 0
