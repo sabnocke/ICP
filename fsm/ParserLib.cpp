@@ -68,14 +68,11 @@ AutomatLib::Automat Parser::parseAutomat(const std::string &file) {
       continue;
     }
 
-
-
     if (collecting || Utils::Contains(line, "state")) {
+      ActualSection = States;
       if (absl::EqualsIgnoreCase(line, "States:")) {
-        ActualSection = States;
         continue;
       }
-      ActualSection = States;
       SectionHandler(line, automat);
       continue;
     }
@@ -119,7 +116,7 @@ void Parser::SectionHandler(const std::string &line,
       if (trimmed.empty())
         return;
       automat.Comment = trimmed;
-      std::cerr << "Comment: " << automat.Comment << std::endl;
+      /*std::cerr << "Comment: " << automat.Comment << std::endl;*/
       return;
     }
     case States: {

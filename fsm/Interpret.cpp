@@ -3,6 +3,7 @@
 #include <absl/log/log.h>
 #include <absl/strings/match.h>
 #include <absl/strings/str_join.h>
+#include <absl/time/time.h>
 #include <re2/re2.h>
 
 #include <algorithm>
@@ -117,10 +118,14 @@ void Interpret::ChangeState(const TransitionGroup& tg) {
 }
 
 bool Interpret::WaitShortestTimer(const TransitionGroup& group) {
+  std::cerr << "Waiting for shortest timer..." << std::endl;
+  std::cerr << group << std::endl;
   if (const auto shortest = group.SmallestTimer(); shortest.has_value()) {
     const auto duration =
         std::chrono::milliseconds(shortest.value().delayInt);
+    std::cout << "Going to sleep at " << absl::FormatTime(absl::Now(), absl::UTCTimeZone()) << std::endl;
     std::this_thread::sleep_for(duration);
+    std::cout << "Returned from sleep at " << absl::FormatTime(absl::Now(), absl::UTCTimeZone()) << std::endl;
 
     ChangeState(group);
     return true;
@@ -129,7 +134,7 @@ bool Interpret::WaitShortestTimer(const TransitionGroup& group) {
 }
 
 void Interpret::LinkDelays() {
-  const auto hasDelay = transitionGroup.Where(
+  auto hasDelay = transitionGroup.Where(
       [](const Transition& tr) { return !tr.delay.empty(); });
 
   if (hasDelay.None()) {
@@ -150,16 +155,28 @@ void Interpret::LinkDelays() {
     }
     transitionGroup = transitionGroup.Merge(mod);
   }
+
+  for (auto& [id, tr]: hasDelay) {
+    if (tr.delayInt != 0)
+      continue;
+
+    if (auto val = Utils::StringToNumeric<int>(tr.delay); val.has_value()) {
+      tr.delayInt = val.value();
+    } else {
+      continue;
+    }
+  }
+
 }
 
 void Interpret::PrepareVariables() {
   for (const auto& variable : variableGroup.Get()) {
     auto [Type, Name, Value] = variable.Tuple();
-    std::cerr << "Variable: " << Type << " " << Name << std::endl;
+    /*std::cerr << "Variable: " << Type << " " << Name << std::endl;*/
 
     if (absl::EqualsIgnoreCase(Type, "int")) {
       if (auto val = TestAndSetValue<int>(Value); val.has_value()) {
-        std::cerr << Name << ": " << val.value() << std::endl;
+        /*std::cerr << Name << ": " << val.value() << std::endl;*/
         lua[Name] = val.value();
       }
 
@@ -233,7 +250,7 @@ std::optional<sol::protected_function> Interpret::TestAndSet(
     chunk_to_load = _cond;
   }
 
-  std::cerr << chunk_to_load << std::endl;
+  /*std::cerr << chunk_to_load << std::endl;*/
   if (const auto primary = lua.load(chunk_to_load); primary.valid()) {
     return primary.get<sol::protected_function>();
   } else {
@@ -250,7 +267,7 @@ std::optional<sol::protected_function> Interpret::TestAndSet(
 }
 
 bool Interpret::ExtractBool(const sol::protected_function_result& result) {
-  std::cerr << "ExtractBool" << std::endl;
+  /*std::cerr << "ExtractBool" << std::endl;*/
   if (!result.valid()) {
     const sol::error r_error = result;
     LOG(ERROR) << absl::StrFormat("Lua runtime error during function call: %v",
@@ -289,10 +306,10 @@ void Interpret::PrepareTransitions() {
 
 void Interpret::PrepareSignals() {
   for (auto& signal : inputs) {
-    std::cerr << "Signal: " << signal << std::endl;
+    /*std::cerr << "Signal: " << signal << std::endl;*/
     lua["Inputs"][signal] = "";
   }
-  std::cout << std::endl;
+  /*std::cout << std::endl;*/
   for (auto& signal : outputs) {
     lua["Outputs"][signal] = "";
   }

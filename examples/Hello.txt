@@ -9,4 +9,4 @@ States:
     state HELLO [ return "hello"; ]
 Transitions:
     WAIT  --> HELLO : hi
-    HELLO --> WAIT  : @ 0
+    HELLO --> WAIT  : @ 5000
