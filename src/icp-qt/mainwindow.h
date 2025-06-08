@@ -123,6 +123,7 @@ private:
   QProcess* fsmProcess = nullptr; ///< Holds the running FSM process
   bool waitingForInput = false;   ///< True if FSM is waiting for user input via terminal
   std::shared_ptr<AutomatLib::Automat> model; ///< Stores currently loaded automat model from parser
+  QString lastRequestedInputName; ///< Stores last requested input name from FSM
 
   /**
    * @brief Connects GUI buttons to their respective slots.

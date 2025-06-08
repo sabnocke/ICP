@@ -1,3 +1,4 @@
+// AHOJ
 /**
  * @file mainwindow.cpp
  * @brief Implements the GUI logic for the FSM editor, including event handling, user interaction, import/export functionality, and integration with the FSM runtime process. This is the core controller of the application window and its behavior.
@@ -434,16 +435,17 @@ void MainWindow::onStartClicked() {
 }
 
 // Handles new output from FSM runtime
-// Parses FSM messages (STATE, INPUT_REQUEST) and updates GUI or logs
+// Parses FSM messages (STATE, REQUEST_INPUTS) and updates GUI or logs
 void MainWindow::handleFSMStdout() {
   while (fsmProcess->canReadLine()) {
     QString line = QString::fromUtf8(fsmProcess->readLine()).trimmed();
-
-    if (line.startsWith("Active state:")) {
-      updateCurrentState(line.mid(QString("Active state:").length()).trimmed());
-    } else if (line.startsWith("INPUT_REQUEST:")) {
-      QString prompt = line.mid(QString("INPUT_REQUEST:").length()).trimmed();
+    qDebug() << "[FSM line on stdout]" << line;
+    if (line.startsWith("STATE: ")) {
+      updateCurrentState(line.mid(QString("STATE: ").length()).trimmed());
+    } else if (line.startsWith("REQUEST_INPUTS:")) {
+      QString prompt = line.mid(QString("REQUEST_INPUTS:").length()).trimmed();
       appendToTerminal("Input requested: " + prompt);
+      lastRequestedInputName = prompt;
 
       // Allow user to enter response
       ui->outputTerminal->setReadOnly(false);
@@ -457,8 +459,16 @@ void MainWindow::handleFSMStdout() {
 
 // Handles error outputs from FSM runtime
 void MainWindow::handleFSMStderr() {
-  const QString error = fsmProcess->readAllStandardError();
-  appendToTerminal("ERROR:" + error);
+  QByteArray stderrData = fsmProcess->readAllStandardError();
+  QList<QByteArray> lines = stderrData.split('\n');
+
+  for (const QByteArray& line : lines) {
+    QString trimmed = QString::fromUtf8(line).trimmed();
+    if (!trimmed.isEmpty()) {
+      qDebug() << "[FSM line on stderr]" << trimmed;
+      appendToTerminal("ERROR: " + trimmed);
+    }
+  }
 }
 
 // Stops the FSM process
@@ -499,7 +509,7 @@ void MainWindow::updateCurrentState(const QString& stateName) {
 // Triggered after input is entered in the terminal
 void MainWindow::sendInputToFSM(const QString& input) {
   if (fsmProcess && fsmProcess->state() == QProcess::Running) {
-    fsmProcess->write(QString("INPUT: %1\n").arg(input).toUtf8()); // Send user input
+    fsmProcess->write(QString("INPUT: %1 = %2\n").arg(lastRequestedInputName, input.trimmed()).toUtf8());// Send user input
     appendToTerminal("Sent input: " + input);
   }
 }
@@ -528,19 +538,22 @@ bool MainWindow::eventFilter(QObject* obj, QEvent* event) {
     if (keyEvent->key() == Qt::Key_Return || keyEvent->key() == Qt::Key_Enter) {
       QString text = ui->outputTerminal->toPlainText().trimmed();
 
-      // Extract only the last line if terminal has logs + input
-      QStringList lines = text.split("\n");
-      QString lastLine = lines.last();
+      // Get the last line of the terminal
+      QStringList lines = text.split('\n');
+      QString lastLine = lines.last().trimmed();
 
-      // Send to FSM
-      if (fsmProcess) {
-        fsmProcess->write((lastLine + "\n").toUtf8());
+      // Remove leading ">>" if present
+      if (lastLine.startsWith(">>")) {
+        lastLine = lastLine.mid(2).trimmed();
       }
 
-      // Make terminal read-only again
-      ui->outputTerminal->setReadOnly(true);
+      // Send to FSM via standard function
+      sendInputToFSM(lastLine);
 
-      return true;
+      ui->outputTerminal->setReadOnly(true);
+      waitingForInput = false;
+
+      return true;  // prevent default newline behavior
     }
   }
   return QMainWindow::eventFilter(obj, event);
