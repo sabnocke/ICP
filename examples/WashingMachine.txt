@@ -9,13 +9,15 @@ Variables:
     int tWash   = 5000
     int tRinse  = 4000
     int tSpin   = 2000
+
 States:
-    state IDLE    [ return status ]
-    state FILL    [ return status ]
-    state WASH    [ return status ]
-    state RINSE   [ return status ]
-    state SPIN    [ return status ]
-    state DONE    [ return status ]
+    state IDLE    [ return "IDLE: waiting before start"; ]
+    state FILL    [ return "FILL: filling water"; ]
+    state WASH    [ return "WASH: washing clothes"; ]
+    state RINSE   [ return "RINSE: rinsing"; ]
+    state SPIN    [ return "SPIN: spinning"; ]
+    state DONE    [ return "DONE: cycle finished"; ]
+
 Transitions:
     IDLE    --> FILL  : @ tIdle
     FILL    --> WASH  : @ tFill
