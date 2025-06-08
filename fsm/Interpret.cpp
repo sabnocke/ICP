@@ -166,6 +166,7 @@ void Interpret::LinkDelays() {
       continue;
     }
   }
+  transitionGroup = transitionGroup.Merge(hasDelay);
 
 }
 
