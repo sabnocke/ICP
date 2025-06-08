@@ -1,48 +1,77 @@
-# Build output directory
+# build artifacts
 BUILD_DIR := build
 
-# Executable name
-TARGET := fsm_editor
+# CMake target name of GUI
+TARGET := icp-qt
+# subfolder under build where that target is generated
+TARGET_SUBDIR := src/icp-qt
 
-# CMake configuration
-CMAKE_TOOLCHAIN ?= $(VCPKG_ROOT)/scripts/buildsystems/vcpkg.cmake
-CMAKE_PREFIX_PATH ?= $(QT_PREFIX)
-CMAKE_BUILD_TYPE ?= Release
+# on multi-config generators -> build/.../Debug
+# single-config (Makefiles, Ninja) -> ignore
+BUILD_CFG ?= $(CMAKE_BUILD_TYPE)
+
+# users can override these from the env or command-line
+QT_DIR     ?= /opt/Qt/6.5.0   # if Qt was not detected by qmake change this path
+VCPKG_ROOT ?= $(CURDIR)/vcpkg # if you have installed vcpkg in different location then suggested change this path
+
+CMAKE_BUILD_TYPE ?= Debug
+
+# Qt detection using qmake
+ifeq ($(OS),Windows_NT)
+  QMAKE := $(shell where qmake 2>nul | head -n1)
+else
+  QMAKE := $(shell which qmake 2>/dev/null)
+endif
+
+ifneq ($(QMAKE),)
+  QT_PREFIX := $(shell $(QMAKE) -query QT_INSTALL_PREFIX)
+else
+  QT_PREFIX := $(QT_DIR)
+endif
+
+# feed into CMake
+CMAKE_TOOLCHAIN_FILE := $(VCPKG_ROOT)/scripts/buildsystems/vcpkg.cmake
+CMAKE_PREFIX_PATH    := $(QT_PREFIX)
+
+CMAKE_FLAGS := \
+  -DCMAKE_TOOLCHAIN_FILE=$(CMAKE_TOOLCHAIN_FILE) \
+  -DCMAKE_PREFIX_PATH=$(CMAKE_PREFIX_PATH)       \
+  -DCMAKE_BUILD_TYPE=$(CMAKE_BUILD_TYPE)
 
 # Doxygen configuration
 DOXYFILE := Doxyfile
-DOC_DIR := doc
+DOC_DIR  := doc
 
-# Compiler flags
-CXX_STANDARD := -DCMAKE_CXX_STANDARD=17
+.PHONY: all configure build run doxygen clean
 
-# Targets
-.PHONY: all build doxygen clean run
+# default: configure + build
+all: configure build
 
-all: build
+# generate your build system
+configure:
+	@echo "[cmake] Configuring in $(BUILD_DIR)..."
+	cmake -S . -B $(BUILD_DIR) $(CMAKE_FLAGS)
 
-# Configure and build the project
+# actually compile
 build:
-	@echo "[Build] Creating build directory and running CMake..."
-	@mkdir -p $(BUILD_DIR)
-	cd $(BUILD_DIR) && cmake .. \
-		$(CXX_STANDARD) \
-		-DCMAKE_TOOLCHAIN_FILE=$(CMAKE_TOOLCHAIN) \
-		-DCMAKE_PREFIX_PATH="$(CMAKE_PREFIX_PATH)" \
-		-DCMAKE_BUILD_TYPE=$(CMAKE_BUILD_TYPE)
-	cd $(BUILD_DIR) && cmake --build . --config $(CMAKE_BUILD_TYPE)
+	@echo "[cmake] Building $(TARGET)..."
+	cmake --build $(BUILD_DIR)
 
-# Run the compiled application
-run:
-	@echo "[Run] Executing application..."
-	@./$(BUILD_DIR)/$(TARGET)
+# build + run
+run: all
+	@echo "[run] Launching $(TARGET)..."
+ifeq ($(OS),Windows_NT)
+	@"$(BUILD_DIR)/$(TARGET_SUBDIR)/$(BUILD_CFG)/$(TARGET).exe"
+else
+	@"$(BUILD_DIR)/$(TARGET_SUBDIR)/$(TARGET)"
+endif
 
-# Generate HTML documentation via Doxygen
+# generate doxygen documentation
 doxygen:
-	@echo "[Doxygen] Generating documentation..."
+	@echo "[doxygen] Generating documentation..."
 	doxygen $(DOXYFILE)
 
-# Clean build and documentation directories
+# wipe everything
 clean:
-	@echo "[Clean] Removing build and doc output..."
-	@rm -rf $(BUILD_DIR) $(DOC_DIR)
+	@echo "[clean] Removing build directory and doxy documentation..."
+	rm -rf $(BUILD_DIR) $(DOC_DIR)

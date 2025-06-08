@@ -434,7 +434,20 @@ void MainWindow::onStartClicked() {
   connect(fsmProcess, QOverload<int, QProcess::ExitStatus>::of(&QProcess::finished),
           this, &MainWindow::onFSMFinished);
 
-  QString fsmPath = QCoreApplication::applicationDirPath() + "/../../../Debug/fsm.exe";
+  QString fsmExecutableName =
+  #ifdef Q_OS_WIN
+        "fsm.exe";
+  #else
+        "fsm";
+  #endif
+  QString fsmExecutablePath =
+  #ifdef Q_OS_WIN
+        "/../../../Debug/";
+  #else
+        "/../../../build/";
+  #endif
+
+  QString fsmPath = QDir::cleanPath(QCoreApplication::applicationDirPath() + fsmExecutablePath + fsmExecutableName);
   fsmPath = QDir::cleanPath(fsmPath);
   fsmProcess->setWorkingDirectory(QCoreApplication::applicationDirPath() + "/../../../");
   fsmProcess->setProcessChannelMode(QProcess::SeparateChannels);

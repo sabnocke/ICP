@@ -1,5 +1,4 @@
-# ICP
-Repo for ICP project
+# ICP project
 
 ## State of examples
 
@@ -21,41 +20,39 @@ Repo for ICP project
 
 ## BUILD
 
-### WINDOWS
-```shell
-$env:VCPKG_ROOT = "C:\path\to\vcpkg"  # unnecessary, set by cmake
-$env:QT_PREFIX = "C:\Qt\6.9.0\msvc2022_64" # dont know about this, but could be set by cmake too
-# technically unnecessary since cmake builds executable,
-# however not sure how it works with QT.
-mingw32-make
-```
+### 1. Vcpkg Dependencies
 
-### LINUX
-```shell
-export VCPKG_ROOT=/absolute/path/to/vcpkg
-export QT_PREFIX=/absolute/path/to/Qt/6.9.0/gcc_64
-make
-```
+You need to install dependencies using vcpkg first.
 
-## Vcpkg Dependencies (more see fsm/readme.md)
-
-To install dependencies using vcpkg:
-
+Inside root of this project:
 ```shell
 git clone https://github.com/microsoft/vcpkg.git
 cd vcpkg
 
-# Bootstrap (choose based on your platform)
+# Bootstrap
 .\bootstrap-vcpkg.bat     # for Windows PowerShell
 ./bootstrap-vcpkg.sh      # for Linux/macOS
 
 # Integrate with CMake
-./vcpkg.exe integrate install
+./vcpkg.exe integrate install   # for Windows PowerShell
+./vcpkg integrate install       # for Linux/macOS
 
 # Install required packages
-./vcpkg.exe install
+./vcpkg.exe install # for Windows PowerShell
+./vcpkg install     # for Linux/macOS
+
 # Installation is handled by manifest
 ```
+### 2. Make
+```shell
+make            # build
+make run        # build + run
+make clean      # clean everything
+make doxygen    # generate documentation
+```
+<span style="color:orange">You need to have cmake and qmake available for this
+</span>
+
 # Dependencies
 This project uses following external libraries (_header-only_ are contained in fsm/external):
  - [abseil](https://abseil.io)
