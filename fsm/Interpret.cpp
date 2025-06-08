@@ -123,9 +123,9 @@ bool Interpret::WaitShortestTimer(const TransitionGroup& group) {
   if (const auto shortest = group.SmallestTimer(); shortest.has_value()) {
     const auto duration =
         std::chrono::milliseconds(shortest.value().delayInt);
-    std::cout << "Going to sleep at " << absl::FormatTime(absl::Now(), absl::UTCTimeZone()) << std::endl;
+    std::cerr << absl::StrFormat("Going to sleep at %s\n", absl::FormatTime(absl::Now(), absl::UTCTimeZone()));
     std::this_thread::sleep_for(duration);
-    std::cout << "Returned from sleep at " << absl::FormatTime(absl::Now(), absl::UTCTimeZone()) << std::endl;
+    std::cerr << absl::StrFormat("Returned from sleep at %s\n", absl::FormatTime(absl::Now(), absl::UTCTimeZone()));
 
     ChangeState(group);
     return true;
