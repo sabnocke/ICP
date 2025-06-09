@@ -1,5 +1,6 @@
 set(CMAKE_TOOLCHAIN_FILE ${CMAKE_SOURCE_DIR}/vcpkg/scripts/buildsystems/vcpkg.cmake CACHE STRING "Vcpkg toolchain file")
-file(COPY ${CMAKE_SOURCE_DIR}/stdlib.lua DESTINATION ${CMAKE_BINARY_DIR})
+# set(CMAKE_PREFIX_PATH "C:/Qt/6.8.3/msvc2022_64" ${CMAKE_PREFIX_PATH})
+# file(COPY ${CMAKE_SOURCE_DIR}/stdlib.lua DESTINATION ${CMAKE_BINARY_DIR})
 
 cmake_minimum_required(VERSION 3.11)
 project(fsm VERSION 0.1 LANGUAGES CXX)

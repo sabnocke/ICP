@@ -42,12 +42,18 @@ Interpret::Interpret(const AutomatLib::Automat& automat) {
   activeState = stateGroup.First().Name;
 
   lua.open_libraries(sol::lib::base);
+  lua.create_named_table("Inputs");
+  lua.create_named_table("Outputs");
+  lua.load(R"(
+    function output(name, value)
+      Outputs[name] = value
+      return name .. " = " .. value
+    end
+  )");
+  lua.load(R"(function defined(name) return Inputs[name] ~= nil end)");
+  lua.load(R"(function valueof(name) return Inputs[name] end)");
+
   lua["elapsed"] = [&]() { return timer.elapsed<>(); };
-  if (const auto file = lua.script_file("stdlib.lua"); !file.valid()) {
-    const sol::error err = file;
-    LOG(ERROR) << absl::StrFormat("Failed to open stdlib.lua: %v", err.what());
-    throw Utils::ProgramTermination();
-  }
 }
 
 Interpret::InterpretedValue Interpret::InterpretResult(
@@ -98,9 +104,7 @@ void Interpret::ChangeState(const TransitionGroup& tg) {
             [](const std::string& val) {
               std::cout << "OUTPUT: " << val << std::endl;
             },
-            [](const bool val) {
-              std::cout << "OUTPUT: " << val << std::endl;
-            },
+            [](const bool val) { std::cout << "OUTPUT: " << val << std::endl; },
             [](const int val) { std::cout << "OUTPUT: " << val << std::endl; },
             [](const double val) {
               std::cout << "OUTPUT: " << val << std::endl;
@@ -121,11 +125,14 @@ bool Interpret::WaitShortestTimer(const TransitionGroup& group) {
   std::cerr << "Waiting for shortest timer..." << std::endl;
   std::cerr << group << std::endl;
   if (const auto shortest = group.SmallestTimer(); shortest.has_value()) {
-    const auto duration =
-        std::chrono::milliseconds(shortest.value().delayInt);
-    std::cerr << absl::StrFormat("Going to sleep at %s\n", absl::FormatTime(absl::Now(), absl::UTCTimeZone()));
+    const auto duration = std::chrono::milliseconds(shortest.value().delayInt);
+    std::cerr << absl::StrFormat(
+        "Going to sleep at %s\n",
+        absl::FormatTime(absl::Now(), absl::UTCTimeZone()));
     std::this_thread::sleep_for(duration);
-    std::cerr << absl::StrFormat("Returned from sleep at %s\n", absl::FormatTime(absl::Now(), absl::UTCTimeZone()));
+    std::cerr << absl::StrFormat(
+        "Returned from sleep at %s\n",
+        absl::FormatTime(absl::Now(), absl::UTCTimeZone()));
 
     ChangeState(group);
     return true;
@@ -156,7 +163,7 @@ void Interpret::LinkDelays() {
     transitionGroup = transitionGroup.Merge(mod);
   }
   auto mod = TransitionGroup();
-  for (auto& [id, tr]: hasDelay) {
+  for (auto& [id, tr] : hasDelay) {
     if (tr.delayInt != 0)
       continue;
 
@@ -332,7 +339,8 @@ std::string Interpret::ExtractInput(const std::string& line) {
 
   if (const auto pos = std::find(inputs.begin(), inputs.end(), name);
       pos == inputs.end()) {
-    LOG(ERROR) << "Cannot dynamically define new signals or required signal is missing";
+    LOG(ERROR) << "Cannot dynamically define new signals or required signal is "
+                  "missing";
     throw Utils::ProgramTermination();
   }
   lua["Inputs"][name] = value;
@@ -422,7 +430,7 @@ int Interpret::Execute() {
     }
 
     auto items = event_true.YieldInputNames();
-    std::cout << "REQUEST_INPUTS: "  << absl::StrJoin(items, ", ") << std::endl;
+    std::cout << "REQUEST_INPUTS: " << absl::StrJoin(items, ", ") << std::endl;
 
     std::string line;
     std::getline(std::cin, line);
