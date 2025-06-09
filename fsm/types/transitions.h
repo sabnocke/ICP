@@ -130,6 +130,13 @@ class Transition {
            std::tie(other.from, other.to, other.input, other.condition,
                     other.delay, other.hasCondition);
   }
+
+  std::string ToString() const {
+    std::stringstream ss;
+    ss << *this;
+    return ss.str();
+  }
+
   /**
   * @brief Výpis přechodu do výstupního proudu.
   */
@@ -239,7 +246,7 @@ class TransitionGroup {
 
   [[nodiscard]] TransitionGroup WhereNone() const {
     return Where([](const auto& tr) {
-      return tr.hasCondition && tr.delay.empty() && tr.input.empty();
+      return !tr.hasCondition && tr.delay.empty() && tr.input.empty();
     });
   }
   [[nodiscard]] std::optional<Transition> SmallestTimer() const {

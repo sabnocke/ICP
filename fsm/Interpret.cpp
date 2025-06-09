@@ -122,17 +122,9 @@ void Interpret::ChangeState(const TransitionGroup& tg) {
 }
 
 bool Interpret::WaitShortestTimer(const TransitionGroup& group) {
-  std::cerr << "Waiting for shortest timer..." << std::endl;
-  std::cerr << group << std::endl;
   if (const auto shortest = group.SmallestTimer(); shortest.has_value()) {
     const auto duration = std::chrono::milliseconds(shortest.value().delayInt);
-    std::cerr << absl::StrFormat(
-        "Going to sleep at %s\n",
-        absl::FormatTime(absl::Now(), absl::UTCTimeZone()));
     std::this_thread::sleep_for(duration);
-    std::cerr << absl::StrFormat(
-        "Returned from sleep at %s\n",
-        absl::FormatTime(absl::Now(), absl::UTCTimeZone()));
 
     ChangeState(group);
     return true;
@@ -145,7 +137,7 @@ void Interpret::LinkDelays() {
       [](const Transition& tr) { return !tr.delay.empty(); });
 
   if (hasDelay.None()) {
-    LOG(INFO) << "No delay found";
+    std::cerr << "No delay found" << std::endl;
     return;
   }
 
@@ -175,14 +167,12 @@ void Interpret::LinkDelays() {
     }
   }
   transitionGroup = transitionGroup.Merge(mod);
-  /*std::cerr << transitionGroup << std::endl;*/
 }
 
 void Interpret::PrepareVariables() {
   for (const auto& variable : variableGroup.Get()) {
-    auto [Type, Name, Value] = variable.Tuple();
-
-    if (absl::EqualsIgnoreCase(Type, "int")) {
+    if (auto [Type, Name, Value] = variable.Tuple();
+        absl::EqualsIgnoreCase(Type, "int")) {
       if (auto val = TestAndSetValue<int>(Value); val.has_value()) {
         lua[Name] = val.value();
       }
@@ -205,7 +195,6 @@ void Interpret::PrepareVariables() {
 void Interpret::PrepareStates() {
   StateGroup<sol::protected_function> tg;
   for (const auto& state : stateGroup) {
-    std::cout << state << std::endl;
     State<sol::protected_function> n{};
     n.Name = state.Name;
     if (const auto a = TestAndSet(state.Action);
@@ -378,11 +367,8 @@ std::pair<int, std::string> Interpret::ParseStdinInput(
 }
 
 int Interpret::Execute() {
-  /*std::cerr << transitionGroup << std::endl;*/
   transitionGroup.GroupTransitions();
   while (true) {
-    std::cerr << "Active state: " << activeState << std::endl;
-
     // First find all reachable transitions from current transition
     auto transitions = transitionGroup.Retrieve(activeState);
     if (!transitions.has_value()) {
@@ -395,7 +381,6 @@ int Interpret::Execute() {
       LOG(ERROR) << "No transitions for state: " << activeState << std::endl;
       break;
     }
-
     // Find all free transitions
     if (auto r = transitions_v.WhereNone(); r.Some()) {
       ChangeState(r);
@@ -410,10 +395,9 @@ int Interpret::Execute() {
     for (const auto& [fst, snd] : transitions_v) {
       if (!snd.input.empty())
         event_true << snd;
-      else {
+      else
         event_false << snd;
-        event_false << snd;
-      }
+
       if (snd.delayInt == 0)
         timer_false << snd;
       else
@@ -424,6 +408,7 @@ int Interpret::Execute() {
       ChangeState(zero);
       continue;
     }
+
     if (auto first = timer_true & event_false; first.Some()) {
       if (WaitShortestTimer(first))
         continue;
@@ -447,6 +432,7 @@ int Interpret::Execute() {
       ChangeState(inputs);
       continue;
     }
+
     if (auto third = event_true & timer_true; third.Some()) {
       auto inputs = third.Where([signalName](const Transition& tr) {
         return tr.input == signalName;

@@ -116,7 +116,6 @@ void Parser::SectionHandler(const std::string &line,
       if (trimmed.empty())
         return;
       automat.Comment = trimmed;
-      /*std::cerr << "Comment: " << automat.Comment << std::endl;*/
       return;
     }
     case States: {

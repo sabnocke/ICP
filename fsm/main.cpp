@@ -20,17 +20,14 @@ int main(const int argc, char** argv) {
 
   try {
     Timer<> timer;
-    timer.tick();
     auto parser = ParserLib::Parser();
     const auto automat = parser.parseAutomat(argv[1]);
     auto interpret = Interpreter::Interpret(automat);
     interpret.Prepare();
-    timer.tock();
-    std::cerr << "Parser and interpret creation took " << timer.duration<>().count() << "ms." << std::endl;
+
     timer.tick();
     interpret.Execute();
     timer.tock();
-    perror("Error");
 
     std::cerr << "Execute took " << timer.duration<std::chrono::seconds>().count() << "s." << std::endl;
 

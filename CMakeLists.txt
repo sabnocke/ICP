@@ -1,6 +1,4 @@
 set(CMAKE_TOOLCHAIN_FILE ${CMAKE_SOURCE_DIR}/vcpkg/scripts/buildsystems/vcpkg.cmake CACHE STRING "Vcpkg toolchain file")
-# set(CMAKE_PREFIX_PATH "C:/Qt/6.8.3/msvc2022_64" ${CMAKE_PREFIX_PATH})
-# file(COPY ${CMAKE_SOURCE_DIR}/stdlib.lua DESTINATION ${CMAKE_BINARY_DIR})
 
 cmake_minimum_required(VERSION 3.11)
 project(fsm VERSION 0.1 LANGUAGES CXX)
@@ -47,13 +45,5 @@ target_link_libraries(fsm PRIVATE
         absl::flags
 )
 
-# add_subdirectory(src/icp-qt) # uncomment this for the project to work, commented out for debugging of fsm
+add_subdirectory(src/icp-qt)
 
-add_custom_command(
-        TARGET fsm
-        POST_BUILD
-        COMMAND ${CMAKE_COMMAND} -E copy
-        "${CMAKE_SOURCE_DIR}/stdlib.lua"
-        "$<TARGET_FILE_DIR:fsm>"
-        COMMENT "Copying stdlib.lua to output directory for $<CONFIG> build"
-)

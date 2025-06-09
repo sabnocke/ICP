@@ -116,6 +116,7 @@ class VariableGroup {
 
   auto begin() { return vars_.begin(); }
   auto end() { return vars_.end(); }
+  auto size() const { return vars_.size(); }
 
   VariableGroup Add(Variable &&var) {
     vars_.insert(std::move(var));
