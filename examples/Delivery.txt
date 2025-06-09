@@ -1,0 +1,26 @@
+name PackageDelivery
+comment: Simulates a package delivery process with branching outcomes.
+Input: event
+Output: status
+
+Variables:
+    int scanTime = 2000
+
+States:
+    state PREPARED     [ return "PREPARED: Package is ready."; ]
+    state IN_TRANSIT   [ return "IN_TRANSIT: Package is on the way."; ]
+    state AT_HUB       [ return "AT_HUB: Arrived at warehouse."; ]
+    state LOST         [ return "LOST: Package was lost."; ]
+    state DELIVERED    [ return "DELIVERED: Package arrived."; ]
+    state RETURNED     [ return "RETURNED: Returned to sender."; ]
+
+Transitions:
+    PREPARED     --> IN_TRANSIT   : [ event == "pickup" ]     @ scanTime
+
+    IN_TRANSIT   --> AT_WAREHOUSE : [ event == "hub" ]        @ scanTime
+    IN_TRANSIT   --> LOST         : [ event == "lost" ]       @ scanTime
+
+    AT_WAREHOUSE --> DELIVERED    : [ event == "ok" ]         @ scanTime
+    AT_WAREHOUSE --> DAMAGED      : [ event == "damaged" ]    @ scanTime
+    AT_WAREHOUSE --> RETURNED     : [ event == "refused" ]    @ scanTime
+
