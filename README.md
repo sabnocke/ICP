@@ -1,24 +1,12 @@
 # ICP project
 
-## State of examples
-
-|Name|Working|Issues
-|--|:--:|--|
-|BuildPipeline| ❌ | Incorrect syntax
-|CoffeeMachine|✅| Stops after `STOPPED`, throws error but expected
-|Hello|**❌**| Incorrect state action
-|Toggle|✅|
-|TrafficLight|**❌**| None of output signals are set at any time
-|WashingMachine|**❌**| `status` signal is never set
-
----
 ## 👤 Authors
 
 - Denis Milistenfer `<xmilis00>`
-- Robert Zelnice `<xzelni06>`
+- Robert Zelnicek `<xzelni06>`
 - Michal Hloch `<xhlochm00>`
 
-## BUILD
+## 🛠️ BUILD
 
 ### 1. Vcpkg Dependencies
 
@@ -53,7 +41,7 @@ make doxygen    # generate documentation
 <span style="color:orange">You need to have cmake and qmake available for this
 </span>
 
-# Dependencies
+# 🔗 Dependencies
 This project uses following external libraries (_header-only_ are contained in fsm/external):
  - [abseil](https://abseil.io)
  - [re2](https://github.com/google/re2/tree/main)
