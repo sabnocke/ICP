@@ -16,6 +16,7 @@
 #include <absl/container/flat_hash_map.h>
 #include <absl/container/flat_hash_set.h>
 #include <absl/container/node_hash_map.h>
+#include <absl/log/log.h>
 #include <absl/strings/str_format.h>
 
 #include <algorithm>
@@ -214,15 +215,33 @@ class TransitionGroup {
     return std::nullopt;
   }
 
-  [[nodiscard]] std::vector<std::string> YieldInputNames() const {
-    std::vector<std::string> result;
+  [[nodiscard]] TransitionGroup RetrieveEx(const std::string& input) const {
+    if (index_by_from2.empty()) {
+      LOG(ERROR) << "RetrieveEx: empty transition group";
+      throw Utils::ProgramTermination();
+    }
+
+    if (index_by_from2.contains(input)) {
+      auto final = TransitionGroup{};
+      const auto index = index_by_from2.at(input);
+      for (auto& i : index) {
+        final << primary.at(i);
+      }
+      return final;
+    }
+    throw Utils::ProgramTermination();
+  }
+
+  [[nodiscard]] auto YieldInputNames() const {
+    absl::btree_set<std::string> yield;
+    /*std::vector<std::string> result;*/
     for (const auto& [id, tr] : primary) {
       if (tr.input.empty())
         continue;
-      std::cout << "Input is " << tr.input << std::endl;
-      result.emplace_back(tr.input);
+      /*result.emplace_back(tr.input);*/
+      yield.insert(tr.input);
     }
-    return result;
+    return yield;
   }
 
   template <typename Predicate>

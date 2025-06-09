@@ -49,9 +49,9 @@ Interpret::Interpret(const AutomatLib::Automat& automat) {
       Outputs[name] = value
       return name .. " = " .. value
     end
-  )");
-  lua.load(R"(function defined(name) return Inputs[name] ~= nil end)");
-  lua.load(R"(function valueof(name) return Inputs[name] end)");
+  )").call();
+  lua.load(R"(function defined(name) return Inputs[name] ~= nil end)").call();
+  lua.load(R"(function valueof(name) return Inputs[name] end)").call();
 
   lua["elapsed"] = [&]() { return timer.elapsed<>(); };
 }
@@ -368,15 +368,17 @@ std::pair<int, std::string> Interpret::ParseStdinInput(
 
 int Interpret::Execute() {
   transitionGroup.GroupTransitions();
+  std::cerr << transitionGroup << std::endl;
+
   while (true) {
     // First find all reachable transitions from current transition
-    auto transitions = transitionGroup.Retrieve(activeState);
-    if (!transitions.has_value()) {
+    auto transitions_v = transitionGroup.RetrieveEx(activeState);
+    /*if (!transitions.has_value()) {
       LOG(ERROR) << "No transitions for state: " << activeState << std::endl;
       break;
     }
 
-    auto& transitions_v = transitions.value();
+    auto& transitions_v = transitions.value();*/
     if (transitions_v.None()) {
       LOG(ERROR) << "No transitions for state: " << activeState << std::endl;
       break;
@@ -424,6 +426,8 @@ int Interpret::Execute() {
       break;
     if (code == 0)
       continue;
+
+    auto r = lua.script("print(valueof('in') == '1')");
 
     if (auto second = event_true & timer_false; second.Some()) {
       auto inputs = second.Where([signalName](const Transition& tr) {
