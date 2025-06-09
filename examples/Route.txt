@@ -14,10 +14,10 @@ States:
     state FINISH    [ return "FINISH: reached finish"; ]
 
 Transitions:
-    START   --> ROUTE_1 : in [ valueof("in") == "1" ]
-    START   --> ROUTE_2 : in [ valueof("in") == "2" ]
-    START   --> ROUTE_3 : in [ valueof("in") == "3" ]
+    START  --> ROUTE_1 : in [ valueof("in") == "1" ]
+    START  --> ROUTE_2 : in [ valueof("in") == "2" ]
+    START  --> ROUTE_3 : in [ valueof("in") == "3" ]
 
-    ROUTE_1 --> FINISH : @ 0
-    ROUTE_2 --> FINISH : @ 0
-    ROUTE_3 --> FINISH : @ 0
+    ROUTE_1 --> FINISH : in
+    ROUTE_2 --> FINISH : in
+    ROUTE_3 --> FINISH : in

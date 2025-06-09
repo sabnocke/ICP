@@ -1,9 +1,8 @@
-// AHOJ
 /**
  * @file mainwindow.cpp
  * @brief Implements the GUI logic for the FSM editor, including event handling, user interaction, import/export functionality, and integration with the FSM runtime process. This is the core controller of the application window and its behavior.
  * @author Denis Milistenfer <xmilis00@stud.fit.vutbr.cz>
- * @date 11.05.2025
+ * @date 09.06.2025
  */
 
 #include "mainwindow.h"

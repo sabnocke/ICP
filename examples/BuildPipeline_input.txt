@@ -1,4 +1,0 @@
-# Time(ms)    Event             Value
-0             commit            abc123
-3000          test_result       pass
-8000          deploy_approval   yes
