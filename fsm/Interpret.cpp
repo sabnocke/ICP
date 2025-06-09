@@ -368,8 +368,6 @@ std::pair<int, std::string> Interpret::ParseStdinInput(
 
 int Interpret::Execute() {
   transitionGroup.GroupTransitions();
-  std::cerr << transitionGroup << std::endl;
-
   while (true) {
     // First find all reachable transitions from current transition
     auto transitions_v = transitionGroup.RetrieveEx(activeState);
@@ -379,6 +377,7 @@ int Interpret::Execute() {
     }
 
     auto& transitions_v = transitions.value();*/
+
     if (transitions_v.None()) {
       LOG(ERROR) << "No transitions for state: " << activeState << std::endl;
       break;
@@ -426,8 +425,6 @@ int Interpret::Execute() {
       break;
     if (code == 0)
       continue;
-
-    auto r = lua.script("print(valueof('in') == '1')");
 
     if (auto second = event_true & timer_false; second.Some()) {
       auto inputs = second.Where([signalName](const Transition& tr) {
