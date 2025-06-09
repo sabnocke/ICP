@@ -24,6 +24,8 @@
 #include <QRandomGenerator>
 #include <QTimer>
 
+#include <QThread>
+
 // Constructor: Initializes the main window, sets up the scene, connects UI signals, and defaults to AddState mode
 MainWindow::MainWindow(QWidget *parent)
     : QMainWindow(parent), ui(new Ui::MainWindow), scene(new GraphicsScene(this)) {
@@ -333,11 +335,18 @@ void MainWindow::onImportClicked() {
   ui->graphicsView->scene()->clear();
   std::map<std::string, StateItem*> stateItems;
   int x = 0;
+  int y = 0;
+  int count = 0;
   for (const auto& state : parsed.states) {
     const auto& name = state.Name;
-    auto* s = scene->createState(QPointF(x, 0), QString::fromStdString(name));
+    auto* s = scene->createState(QPointF(x, y), QString::fromStdString(name));
     stateItems[name] = s;
     x += 150;
+    count++;
+    if (count > 4) {
+      x = 0;
+      y += 150;
+    }
   }
 
   // Transitions
@@ -347,9 +356,17 @@ void MainWindow::onImportClicked() {
     if (from && to) {
       auto* tr = scene->createTransitionByNames(from, to);
       std::string fullLabel = t.input;
+
+      // Add condition
       if (!t.condition.empty()) {
         fullLabel += " [" + t.condition + "]";
       }
+
+      // Add delay
+      if (!t.delay.empty()) {
+        fullLabel += " @ " + t.delay;
+      }
+
       tr->setLabel(QString::fromStdString(fullLabel));
     }
   }
@@ -467,9 +484,11 @@ void MainWindow::onStartClicked() {
 void MainWindow::handleFSMStdout() {
   while (fsmProcess->canReadLine()) {
     QString line = QString::fromUtf8(fsmProcess->readLine()).trimmed();
-    qDebug() << "[FSM line on stdout]" << line;
+    qDebug() << "[FSM stdout]" << line;
     if (line.startsWith("STATE: ")) {
       updateCurrentState(line.mid(QString("STATE: ").length()).trimmed());
+      QApplication::processEvents();
+      //QThread::msleep(2000);
     } else if (line.startsWith("REQUEST_INPUTS:")) {
       QString prompt = line.mid(QString("REQUEST_INPUTS:").length()).trimmed();
       appendToTerminal("Input requested: " + prompt);
@@ -493,8 +512,7 @@ void MainWindow::handleFSMStderr() {
   for (const QByteArray& line : lines) {
     QString trimmed = QString::fromUtf8(line).trimmed();
     if (!trimmed.isEmpty()) {
-      qDebug() << "[FSM line on stderr]" << trimmed;
-      appendToTerminal("ERROR: " + trimmed);
+      qDebug() << "[FSM stderr]" << trimmed;
     }
   }
 }
